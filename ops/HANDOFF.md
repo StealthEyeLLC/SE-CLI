@@ -2,7 +2,7 @@
 
 ## Current mission
 
-M-2026-06-01-001: Initialize SE-CLI documentation and Render setup spine.
+M-2026-06-01-002: Replan next build as Render-first MCP vertical slice.
 
 ## Current branch
 
@@ -14,48 +14,53 @@ None.
 
 ## Current commit
 
-Bootstrap/docs commits are being committed directly during initial repository setup. Future implementation missions should use mission branches and PRs once the work-packet/worker loop exists.
+Docs/planning commits are being committed directly during initial repository setup. Future implementation missions should use mission branches and PRs once the work-packet/worker loop exists.
 
 ## Current State Card
 
-- Mission: M-2026-06-01-001, Initialize docs and Render setup spine
-- Mode: bootstrap-ready
+- Mission: M-2026-06-01-002, Replan next build as Render-first MCP vertical slice
+- Mode: plan-updated-render-first
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
-- Render: bootstrap Dockerfile exists; Render can deploy a placeholder service
-- Last action: added root `Dockerfile` and `.dockerignore`
-- Next action: create Render web service from root `Dockerfile`, then build first implementation mission from `ops/UPGRADE_LIST.md`
+- Render: live bootstrap service at `https://se-cli-mcp.onrender.com`
+- Last action: updated build plan and upgrade list to make P1A the next mission
+- Next action: start P1A normal mission to build the real read-only MCP runtime on Render
 - Blocked: no
-- Needs approval: none for docs/bootstrap setup; Render account/service creation is user-owned
+- Needs approval: normal mission approval for implementation work
 - Risk: low
 - Updated: 2026-06-01
 
 ## Last completed action
 
-The repository was initialized with the SE-CLI operating doctrine, documentation spine, Render setup docs, and a bootstrap Dockerfile that can deploy before the real MCP runtime exists.
+The build plan was corrected from broad scaffold-first to Render-first. The next build is now P1A: a minimal TypeScript MCP app on Render with stable `/healthz`, `/readyz`, `/status`, `/mcp`, and read-only `se.get_state_card`.
 
 ## Next safest action
 
-1. User creates/configures Render resources from `docs/RENDER_SETUP.md`.
-2. Create a Render Web Service from the root `Dockerfile`.
-3. Set health check path to `/healthz`.
-4. Add secrets/env vars in Render and GitHub as documented.
-5. Confirm `/healthz`, `/readyz`, and `/status` on the Render URL.
-6. Start the first implementation mission: repository/package scaffold and schema/policy tests.
+Start P1A normal mission:
+
+1. Add minimal TypeScript scaffold.
+2. Add `apps/mcp-server` real app.
+3. Keep `/healthz`, `/readyz`, and `/status` stable.
+4. Replace placeholder `/mcp` with real read-only MCP runtime.
+5. Add `se.get_state_card` read-only tool.
+6. Update Dockerfile to start the real app.
+7. Keep DB/queue optional for now.
+8. Deploy to Render and verify endpoints.
 
 ## Open risks
 
 - Real MCP runtime does not exist yet.
-- `/mcp` is a placeholder endpoint and returns not implemented.
+- `/mcp` is currently a placeholder endpoint and returns not implemented.
 - Worker is not implemented yet.
 - CI is not configured yet.
-- Render resources may still need manual creation.
+- ChatGPT custom app configuration is not complete yet.
 
 ## Do not do
 
-- Do not expose a generic remote shell.
+- Do not expose write-capable MCP tools in P1A.
+- Do not require DB/queue in P1A.
 - Do not add local model dependencies.
 - Do not create dashboard-first workflow.
 - Do not add broad write permissions before the packet/worker policy layer exists.

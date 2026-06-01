@@ -4,7 +4,7 @@ This file describes how SE-CLI should connect to ChatGPT once the MCP server is 
 
 ## Current status
 
-The MCP runtime does not exist yet. This file defines the target setup and environment surface so Render and app setup can be prepared cleanly.
+Render bootstrap is live, but the real MCP runtime does not exist yet. The next implementation mission is P1A: replace the placeholder `/mcp` response with a real read-only MCP runtime.
 
 ## Target connection
 
@@ -14,28 +14,54 @@ ChatGPT should connect to the Render-hosted MCP endpoint:
 - MCP path: value of `SECLI_MCP_PATH`, default `/mcp`
 - Full endpoint: `SECLI_PUBLIC_BASE_URL + SECLI_MCP_PATH`
 
-Example shape:
+Current target shape:
 
 `https://se-cli-mcp.onrender.com/mcp`
+
+## P1A app goal
+
+P1A should make the Render service usable as a real read-only MCP app.
+
+P1A must provide:
+
+- `/healthz`
+- `/readyz`
+- `/status`
+- `/mcp`
+- read-only MCP initialize/list-tools behavior
+- read-only tool: `se.get_state_card`
+
+P1A must not provide:
+
+- write tools
+- worker execution
+- work packet execution
+- production deploy tools
+- generic shell tools
+- DB/queue requirement
 
 ## Tool design
 
 Use a small, high-level tool surface.
 
-Read tools:
+P1A read tool:
 
 - `se.get_state_card`
+
+Later read tools:
+
 - `se.read_handoff`
+- `se.read_build_plan`
 - `se.read_upgrade_list`
 - `se.read_latest_receipt`
 - `se.inspect_mission`
 - `se.search_memory`
 
-Main write tool:
+Later main write tool:
 
 - `se.start_next_safe_mission`
 
-Targeted control tools:
+Later targeted control tools:
 
 - `se.create_mission`
 - `se.create_work_packet`
@@ -61,13 +87,13 @@ Read tools:
 - `destructiveHint: false`
 - `openWorldHint: false`
 
-Normal mission tool:
+Normal mission tool, later:
 
 - `readOnlyHint: false`
 - `destructiveHint: false`
 - `openWorldHint: true`
 
-Elevated/deploy tools:
+Elevated/deploy tools, later:
 
 - `readOnlyHint: false`
 - `destructiveHint: true` when deletion, overwrite, production deploy, or workflow/security mutation risk exists
@@ -75,7 +101,7 @@ Elevated/deploy tools:
 
 ## Auth modes
 
-The final implementation should prefer proper OAuth or verified bearer-style auth as supported by the Apps SDK and the deployment environment.
+P1A can begin with no user-secrets-dependent app behavior and focus on read-only MCP compatibility. The final implementation should prefer proper OAuth or verified bearer-style auth as supported by the Apps SDK and the deployment environment.
 
 Bootstrap env vars reserved for this:
 
@@ -93,27 +119,30 @@ ChatGPT chat context is not authoritative state.
 Authoritative state lives in:
 
 - GitHub repo files for code/docs
-- Postgres for missions/jobs/events/memory/receipts/handoffs
-- GitHub PR/CI for proof state
+- Postgres for missions/jobs/events/memory/receipts/handoffs, once implemented
+- GitHub PR/CI for proof state, once implemented
 - Render for deployed MCP service state
+
+P1A may use static/mock state derived from repo docs until Postgres exists.
 
 ## First connection checklist
 
-After MCP runtime exists and is deployed:
+After P1A runtime exists and is deployed:
 
 1. Confirm `/healthz` is passing.
-2. Confirm `/readyz` can reach Postgres and queue/cache.
-3. Confirm `/status` returns a State Card shell.
+2. Confirm `/readyz` passes without requiring DB/queue.
+3. Confirm `/status` returns a State Card.
 4. Confirm `/mcp` is reachable over HTTPS.
 5. Configure the custom ChatGPT app/developer-mode MCP connection to the `/mcp` endpoint.
-6. Test read-only tools first.
+6. Test MCP initialize/list-tools.
 7. Test `se.get_state_card`.
-8. Test handoff/receipt/upgrade-list reads.
-9. Only then test a normal write mission with a harmless fixture packet.
+8. Do not test write tools because none should exist yet.
 
-## First write test
+## First write test, later
 
-The first write mission should be tiny and safe:
+The first write mission should happen only after packet creation and policy gates exist.
+
+It should be tiny and safe:
 
 - create a mission branch
 - update a generated fixture file
@@ -122,4 +151,4 @@ The first write mission should be tiny and safe:
 - open PR
 - update receipt/handoff/status
 
-Do not make the first write mission edit workflows, deployment config, secrets, or production behavior.
+Do not make the first write mission edit workflows, deployment config, credentials, or production behavior.

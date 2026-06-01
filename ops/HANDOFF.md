@@ -2,7 +2,7 @@
 
 ## Current mission
 
-M-2026-06-01-008: Add P2A schema and policy contract layer.
+M-2026-06-01-009: Prepare P2A verification handoff.
 
 ## Current branch
 
@@ -14,17 +14,17 @@ None.
 
 ## Current State Card
 
-- Mission: M-2026-06-01-008, Add P2A schema and policy contract layer
-- Mode: p2a-implemented-pending-verification
+- Mission: M-2026-06-01-009, Prepare P2A verification handoff
+- Mode: p2a-awaiting-execution-verification
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
 - Render: live service at `https://se-cli-mcp.onrender.com` running MCP runtime with routine update lanes
-- Last action: added P2A schema and policy packages with contract types, policy decisions, continuation decisions, and node test fixtures
-- Next action: verify build/typecheck/test once execution is available, then repair any TypeScript/runtime issues before moving to P2B
-- Blocked: verification pending
-- Needs approval: none for verification; normal mission approval for repairs if needed
+- Last action: confirmed P2A implementation state and prepared verification handoff for build/typecheck/test
+- Next action: run `pnpm install`, `pnpm build`, `pnpm typecheck`, and `pnpm test`; repair any failures before P2B
+- Blocked: verification pending because execution/CI is not available through current SE-CLI tools
+- Needs approval: none for verification; normal mission approval for any repair commit if verification fails
 - Risk: normal
 - Updated: 2026-06-01
 
@@ -89,20 +89,22 @@ Run or obtain verification for:
 
 Then repair any TypeScript or test failures. Do not move to P2B until P2A verifies.
 
-## Open risks
+## Current blocker
 
-- P2A source has not been executed in CI/local runtime yet.
-- Worker is not implemented yet.
-- CI is not configured yet.
-- DB/queue are not configured yet.
-- GitHub and Render adapters are not implemented yet.
-- Final mission-level write tools do not exist yet.
+The current SE-CLI tools can read/write repo files but cannot run commands. CI is not configured. That means P2A cannot be honestly marked complete until verification is performed by a local worker, CI, or manual command run.
+
+## Recommended next upgrade
+
+Add the smallest verification lane that does not broaden into generic shell control:
+
+- preferred: GitHub Actions CI for `pnpm install`, `pnpm build`, `pnpm typecheck`, `pnpm test` when workflow editing is explicitly approved
+- alternative: bounded local-worker verification packet for exactly those commands
 
 ## Do not do
 
 - Do not start P2B until P2A passes build/typecheck/test.
 - Do not expose generic command execution.
-- Do not add worker execution before packet contracts are stable.
+- Do not add broad worker execution before packet contracts are stable.
 - Do not require DB/queue for P2A.
 - Do not add local model dependencies.
 - Do not create dashboard-first workflow.

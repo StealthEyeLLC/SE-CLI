@@ -8,7 +8,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm build && pnpm -r typecheck",
-    "test": "pnpm build && node --test packages/se-policy/dist/test/*.test.js",
+    "test": "pnpm build && node --test packages/se-policy/dist/test/*.test.js packages/se-build-list/dist/test/*.test.js",
     "start": "node apps/mcp-server/dist/index.js"
   },
   "devDependencies": {

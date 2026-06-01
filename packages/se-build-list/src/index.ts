@@ -40,16 +40,21 @@ export interface BuildListProgressV0 {
 const terminalStatuses = new Set<BuildListItemStatusV0>(["done", "skipped"]);
 
 function cloneItem(item: BuildListItemV0): BuildListItemV0 {
-  return {
-    ...item,
-    depends_on: item.depends_on ? [...item.depends_on] : undefined,
-    notes: item.notes ? [...item.notes] : undefined
+  const cloned: BuildListItemV0 = {
+    id: item.id,
+    title: item.title,
+    status: item.status
   };
+  if (item.depends_on) cloned.depends_on = [...item.depends_on];
+  if (item.attempts !== undefined) cloned.attempts = item.attempts;
+  if (item.notes) cloned.notes = [...item.notes];
+  return cloned;
 }
 
 function cloneList(list: BuildListV0): BuildListV0 {
   return {
-    ...list,
+    id: list.id,
+    title: list.title,
     items: list.items.map(cloneItem)
   };
 }
@@ -87,8 +92,12 @@ export function getNextUnblockedItem(list: BuildListV0): BuildListItemV0 | null 
 
 export function updateBuildListItemStatus(list: BuildListV0, id: string, status: BuildListItemStatusV0): BuildListV0 {
   return {
-    ...list,
-    items: list.items.map((item) => (item.id === id ? { ...cloneItem(item), status } : cloneItem(item)))
+    ...cloneList(list),
+    items: list.items.map((item) => {
+      const cloned = cloneItem(item);
+      if (item.id === id) cloned.status = status;
+      return cloned;
+    })
   };
 }
 
@@ -105,11 +114,13 @@ function updateBuildListItemWithNote(
   note?: string
 ): BuildListV0 {
   return {
-    ...list,
+    ...cloneList(list),
     items: list.items.map((item) => {
-      if (item.id !== id) return cloneItem(item);
-      const notes = note ? [...(item.notes ?? []), note] : item.notes ? [...item.notes] : undefined;
-      return { ...cloneItem(item), status, notes };
+      const cloned = cloneItem(item);
+      if (item.id !== id) return cloned;
+      cloned.status = status;
+      if (note) cloned.notes = [...(cloned.notes ?? []), note];
+      return cloned;
     })
   };
 }
@@ -128,16 +139,14 @@ export function skipBuildListItem(list: BuildListV0, id: string, note?: string):
 
 export function retryBuildListItem(list: BuildListV0, id: string, note?: string): BuildListV0 {
   return {
-    ...list,
+    ...cloneList(list),
     items: list.items.map((item) => {
-      if (item.id !== id) return cloneItem(item);
-      const notes = note ? [...(item.notes ?? []), note] : item.notes ? [...item.notes] : undefined;
-      return {
-        ...cloneItem(item),
-        status: "pending",
-        attempts: (item.attempts ?? 0) + 1,
-        notes
-      };
+      const cloned = cloneItem(item);
+      if (item.id !== id) return cloned;
+      cloned.status = "pending";
+      cloned.attempts = (cloned.attempts ?? 0) + 1;
+      if (note) cloned.notes = [...(cloned.notes ?? []), note];
+      return cloned;
     })
   };
 }

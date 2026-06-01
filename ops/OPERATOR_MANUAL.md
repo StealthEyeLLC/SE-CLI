@@ -15,12 +15,13 @@ ChatGPT plans. The MCP control plane records state and creates bounded work pack
 1. Do not rely on prior chat context.
 2. Read `ops/HANDOFF.md`.
 3. Read `ops/STATUS.md`.
-4. Read `ops/UPGRADE_LIST.md`.
-5. Read `ops/RECEIPT.md`.
-6. Inspect the current GitHub PR/CI status if a PR exists.
-7. Inspect Render status if the MCP server exists.
-8. Continue from the `Next safest action` field.
-9. Ask the user only for a real approval boundary.
+4. Read `ops/BUILD_PLAN.md`.
+5. Read `ops/UPGRADE_LIST.md`.
+6. Read `ops/RECEIPT.md`.
+7. Inspect the current GitHub PR/CI status if a PR exists.
+8. Inspect Render status if the MCP server exists.
+9. Continue from the `Next safest action` field.
+10. Ask the user only for a real approval boundary.
 
 ## User UX law
 
@@ -38,6 +39,7 @@ Allowed examples:
 - read handoff
 - read receipt
 - read upgrade list
+- read build plan
 - read PR/CI status
 - read Render status
 - search durable memory
@@ -61,7 +63,7 @@ A normal mission may:
 - push the mission branch
 - open/update a PR
 - read CI status
-- update `ops/HANDOFF.md`, `ops/STATUS.md`, `ops/RECEIPT.md`, and `ops/UPGRADE_LIST.md`
+- update `ops/HANDOFF.md`, `ops/STATUS.md`, `ops/BUILD_PLAN.md`, `ops/RECEIPT.md`, and `ops/UPGRADE_LIST.md`
 - write compact state/events to durable storage
 
 A normal mission may not:
@@ -158,6 +160,7 @@ A packet must answer:
 
 - `ops/STATUS.md`: what is true right now.
 - `ops/HANDOFF.md`: how a new tab continues.
+- `ops/BUILD_PLAN.md`: what will be built, in what order, with acceptance criteria.
 - `ops/RECEIPT.md`: what just happened.
 - `ops/UPGRADE_LIST.md`: what should happen next.
 - `ops/DECISIONS.md`: why durable decisions were made.
@@ -169,7 +172,7 @@ A packet must answer:
 ## Mission lifecycle
 
 1. Read State Card.
-2. Read handoff, receipt, and upgrade list.
+2. Read handoff, build plan, receipt, and upgrade list.
 3. Select the next safe upgrade or use the user's requested mission.
 4. Define acceptance tests.
 5. Classify approval level.
@@ -180,7 +183,7 @@ A packet must answer:
 10. Worker executes packet.
 11. Worker pushes branch and opens/updates PR.
 12. GitHub Actions proves the result.
-13. Update status, receipt, handoff, and upgrade list.
+13. Update status, build plan, receipt, handoff, and upgrade list.
 14. Report final State Card to the user.
 
 ## Anti-drift laws

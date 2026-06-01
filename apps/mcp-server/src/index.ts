@@ -1,9 +1,12 @@
+import { readFile } from "node:fs/promises";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import path from "node:path";
 import { createStateCard } from "@stealtheye/se-core";
 
 const port = Number.parseInt(process.env.PORT || "10000", 10);
 const host = "0.0.0.0";
 const startedAt = new Date().toISOString();
+const repoRoot = process.env.SECLI_REPO_ROOT || process.cwd();
 
 interface JsonRpcRequest {
   jsonrpc?: string;
@@ -30,6 +33,39 @@ interface JsonRpcError {
 
 type JsonRpcResponse = JsonRpcSuccess | JsonRpcError;
 
+interface ReadOnlyToolDefinition {
+  name: string;
+  description: string;
+  filePath?: string;
+}
+
+const readOnlyTools: ReadOnlyToolDefinition[] = [
+  {
+    name: "se.get_state_card",
+    description: "Return the current SE-CLI State Card. Read-only. Does not mutate repository, Render, GitHub, or worker state.",
+  },
+  {
+    name: "se.read_handoff",
+    description: "Read ops/HANDOFF.md. Read-only. Returns the current new-tab continuation context.",
+    filePath: "ops/HANDOFF.md",
+  },
+  {
+    name: "se.read_build_plan",
+    description: "Read ops/BUILD_PLAN.md. Read-only. Returns the living implementation plan.",
+    filePath: "ops/BUILD_PLAN.md",
+  },
+  {
+    name: "se.read_upgrade_list",
+    description: "Read ops/UPGRADE_LIST.md. Read-only. Returns the ranked build backlog.",
+    filePath: "ops/UPGRADE_LIST.md",
+  },
+  {
+    name: "se.read_latest_receipt",
+    description: "Read ops/RECEIPT.md. Read-only. Returns the latest compact mission receipt.",
+    filePath: "ops/RECEIPT.md",
+  },
+];
+
 function normalizePath(pathname: string): string {
   if (pathname === "/") {
     return pathname;
@@ -44,14 +80,6 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
     "cache-control": "no-store",
   });
   res.end(payload);
-}
-
-function sendText(res: ServerResponse, status: number, body: string): void {
-  res.writeHead(status, {
-    "content-type": "text/plain; charset=utf-8",
-    "cache-control": "no-store",
-  });
-  res.end(body);
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -78,28 +106,73 @@ function rpcError(id: JsonRpcRequest["id"], code: number, message: string, data?
   return { jsonrpc: "2.0", id: id ?? null, error: { code, message, ...(data === undefined ? {} : { data }) } };
 }
 
-function toolList() {
+function emptyInputSchema() {
   return {
-    tools: [
-      {
-        name: "se.get_state_card",
-        description: "Return the current SE-CLI State Card. Read-only. Does not mutate repository, Render, GitHub, or worker state.",
-        inputSchema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {},
-        },
-        annotations: {
-          readOnlyHint: true,
-          destructiveHint: false,
-          openWorldHint: false,
-        },
-      },
-    ],
+    type: "object",
+    additionalProperties: false,
+    properties: {},
   };
 }
 
-function handleRpc(request: JsonRpcRequest): JsonRpcResponse | null {
+function toolList() {
+  return {
+    tools: readOnlyTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: emptyInputSchema(),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+    })),
+  };
+}
+
+function toolResultText(text: string, structuredContent?: unknown) {
+  return {
+    content: [
+      {
+        type: "text",
+        text,
+      },
+    ],
+    ...(structuredContent === undefined ? {} : { structuredContent }),
+    isError: false,
+  };
+}
+
+async function readRepoFile(relativePath: string): Promise<{ path: string; content: string }> {
+  const resolvedPath = path.resolve(repoRoot, relativePath);
+  const resolvedRoot = path.resolve(repoRoot);
+
+  if (!resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error(`Refusing to read outside repo root: ${relativePath}`);
+  }
+
+  const content = await readFile(resolvedPath, "utf8");
+  return { path: relativePath, content };
+}
+
+async function callTool(name: string) {
+  if (name === "se.get_state_card") {
+    const stateCard = createStateCard();
+    return toolResultText(JSON.stringify(stateCard, null, 2), stateCard);
+  }
+
+  const tool = readOnlyTools.find((candidate) => candidate.name === name);
+  if (!tool?.filePath) {
+    throw new Error(`Unknown tool: ${name}`);
+  }
+
+  const document = await readRepoFile(tool.filePath);
+  return toolResultText(document.content, {
+    path: document.path,
+    content: document.content,
+  });
+}
+
+async function handleRpc(request: JsonRpcRequest): Promise<JsonRpcResponse | null> {
   const id = request.id ?? null;
 
   switch (request.method) {
@@ -129,21 +202,12 @@ function handleRpc(request: JsonRpcRequest): JsonRpcResponse | null {
       if (!params?.name) {
         return rpcError(id, -32602, "tools/call requires params.name");
       }
-      if (params.name !== "se.get_state_card") {
-        return rpcError(id, -32601, `Unknown tool: ${params.name}`);
-      }
 
-      const stateCard = createStateCard();
-      return rpcSuccess(id, {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(stateCard, null, 2),
-          },
-        ],
-        structuredContent: stateCard,
-        isError: false,
-      });
+      try {
+        return rpcSuccess(id, await callTool(params.name));
+      } catch (error) {
+        return rpcError(id, -32601, error instanceof Error ? error.message : `Unknown tool: ${params.name}`);
+      }
     }
 
     default:
@@ -153,14 +217,14 @@ function handleRpc(request: JsonRpcRequest): JsonRpcResponse | null {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
-  const path = normalizePath(url.pathname);
+  const routePath = normalizePath(url.pathname);
 
-  if (req.method === "GET" && path === "/healthz") {
+  if (req.method === "GET" && routePath === "/healthz") {
     sendJson(res, 200, { ok: true, service: "se-cli-mcp", runtime: "real-mcp-read-only", started_at: startedAt });
     return;
   }
 
-  if (req.method === "GET" && path === "/readyz") {
+  if (req.method === "GET" && routePath === "/readyz") {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
@@ -171,12 +235,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "GET" && path === "/status") {
+  if (req.method === "GET" && routePath === "/status") {
     sendJson(res, 200, createStateCard());
     return;
   }
 
-  if (path === normalizePath(process.env.SECLI_MCP_PATH || "/mcp")) {
+  if (routePath === normalizePath(process.env.SECLI_MCP_PATH || "/mcp")) {
     if (req.method !== "POST") {
       sendJson(res, 405, {
         ok: false,
@@ -193,7 +257,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const response = handleRpc(request);
+      const response = await handleRpc(request);
       if (response === null) {
         res.writeHead(204);
         res.end();
@@ -206,7 +270,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "GET" && path === "/") {
+  if (req.method === "GET" && routePath === "/") {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
@@ -221,7 +285,7 @@ const server = http.createServer(async (req, res) => {
     service: "se-cli-mcp",
     runtime: "real-mcp-read-only",
     message: "Route not found. Available endpoints: /healthz, /readyz, /status, /mcp",
-    path,
+    path: routePath,
   });
 });
 

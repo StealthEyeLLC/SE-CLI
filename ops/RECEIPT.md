@@ -38,6 +38,8 @@ None.
 - `docs/SECURITY.md`
 - `docs/RENDER_SETUP.md`
 - `docs/render-blueprint.example.yaml`
+- `docs/CHATGPT_APP_SETUP.md`
+- `docs/LICENSING.md`
 
 ## Commands/tests
 
@@ -53,7 +55,7 @@ Not configured yet.
 
 ## Risk notes
 
-Low risk. Documentation only. No secrets, no runtime code, no deployment configuration in root, no GitHub Actions workflow, and no Render service created by this mission.
+Low risk. Documentation only. No secrets, no runtime code, no root `render.yaml`, no GitHub Actions workflow, and no Render service created by this mission.
 
 ## Next action
 

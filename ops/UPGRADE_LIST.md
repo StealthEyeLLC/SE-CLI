@@ -19,16 +19,33 @@ This file is the ranked build backlog. The top safe item should normally become 
 ### U001 - Render-first real MCP vertical slice
 
 - Priority score: 76
-- Status: next
-- Why now: The fastest path to usefulness is replacing the Render bootstrap placeholder with a real read-only MCP app before broad scaffolding.
-- Unblocks: ChatGPT app connection, real State Card reads, MCP tool testing, future write/packet tools.
-- Risk reduced: Proves the deployed control-plane path early while keeping tools read-only.
-- Effort: medium
-- Blast radius: normal
-- Acceptance tests: `pnpm install`, `pnpm build`, `pnpm typecheck`, `pnpm test`, Docker build, Render deploy, `/healthz`, `/readyz`, `/status`, `/mcp`, and read-only `se.get_state_card` tool all work.
+- Status: done
+- Why now: The fastest path to usefulness was replacing the Render bootstrap placeholder with a real read-only MCP app before broad scaffolding.
+- Result: Render-hosted MCP runtime is live and connected to ChatGPT.
+- Acceptance proof: `/healthz`, `/readyz`, `/status`, `/mcp`, and `se.get_state_card` work.
 - Last touched: 2026-06-01
 
-### U002 - Focused repository/package scaffold expansion
+### U002 - Complete read-only MCP tools
+
+- Priority score: 58
+- Status: done
+- Why now: ChatGPT needed a low-risk way to inspect repo state before launching missions.
+- Result: `se.get_state_card`, `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt` return structured data from the Render runtime.
+- Last touched: 2026-06-01
+
+### U003 - Add schemas and normal/elevated mission policy tests
+
+- Priority score: 60
+- Status: next
+- Why now: Mission, packet, receipt, handoff, and State Card contracts must exist before execution or write-capable tools.
+- Unblocks: work packets, worker validation, durable storage, safe write tools.
+- Risk reduced: Blocks unsafe mission shapes before they can become executable work.
+- Effort: medium
+- Blast radius: low
+- Acceptance tests: Allowed fixtures pass; disallowed path/command/content fixtures fail; elevated mission fixtures require elevated classification.
+- Last touched: 2026-06-01
+
+### U004 - Focused repository/package scaffold expansion
 
 - Priority score: 61
 - Status: queued
@@ -38,30 +55,6 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Effort: medium
 - Blast radius: low
 - Acceptance tests: existing real MCP app still deploys; package boundaries are useful; base scripts still pass.
-- Last touched: 2026-06-01
-
-### U003 - Add schemas and normal/elevated mission policy tests
-
-- Priority score: 60
-- Status: queued
-- Why now: Mission, packet, receipt, handoff, and State Card contracts must exist before execution.
-- Unblocks: MCP tools, worker validation, durable storage.
-- Risk reduced: Blocks unsafe packets early.
-- Effort: medium
-- Blast radius: low
-- Acceptance tests: Safe fixtures pass; unsafe path/command/credential-like fixtures fail.
-- Last touched: 2026-06-01
-
-### U004 - Complete read-only MCP tools
-
-- Priority score: 58
-- Status: queued
-- Why now: ChatGPT needs a low-risk way to inspect repo state before launching missions.
-- Unblocks: Natural-language operating loop.
-- Risk reduced: Establishes read-only tool surface before writes.
-- Effort: medium
-- Blast radius: low
-- Acceptance tests: `se.get_state_card`, `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt` return structured data.
 - Last touched: 2026-06-01
 
 ### U005 - Add work packet creation and validation

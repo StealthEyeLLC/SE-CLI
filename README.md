@@ -10,7 +10,7 @@ The user talks to ChatGPT. ChatGPT plans and calls the SE-CLI MCP control plane.
 
 ## Current repository state
 
-This repository currently contains the operating documentation spine, living build plan, and Render bootstrap Docker service. Runtime MCP server code, worker code, CI, and production Render Blueprint files should be added through approved SE-CLI missions.
+This repository currently contains the operating documentation spine, root `AGENTS.md`, living build plan, and Render bootstrap Docker service. Runtime MCP server code, worker code, CI, and production Render Blueprint files should be added through approved SE-CLI missions.
 
 ## Core UX target
 
@@ -29,6 +29,10 @@ Normal work should require one mission-level approval, not per-file, per-command
 7. GitHub Actions verifies the work.
 8. MCP updates status, receipt, handoff, upgrade list, and build plan when needed.
 9. ChatGPT reports the result and next safest action.
+
+## Agent instructions
+
+- `AGENTS.md` - root cross-agent instruction surface. Any assistant, coding agent, local worker, or future automated tool should read this before planning or changing files.
 
 ## Operating docs
 

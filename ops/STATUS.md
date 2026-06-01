@@ -2,18 +2,18 @@
 
 ## State Card
 
-- Mission: M-2026-06-01-006, Align docs with MCP control-plane upgrades
-- Mode: control-plane-docs-current-next-p2a
+- Mission: M-2026-06-01-008, Add P2A schema and policy contract layer
+- Mode: p2a-implemented-pending-verification
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
 - Render: live service at `https://se-cli-mcp.onrender.com` running MCP runtime with routine update lanes
-- Last action: documented thin-app/MCP control-plane upgrades, routine batch update lane, and P2A contract target
-- Next action: start P2A/U005 core envelopes, schemas, policy verdicts, and continuation contracts
-- Blocked: no
-- Needs approval: normal mission approval for P2A implementation work
-- Risk: low
+- Last action: added P2A schema and policy packages with contract types, policy decisions, continuation decisions, and node test fixtures
+- Next action: verify build/typecheck/test once execution is available, then repair any TypeScript/runtime issues before moving to P2B
+- Blocked: verification pending
+- Needs approval: none for verification; normal mission approval for repairs if needed
+- Risk: normal
 - Updated: 2026-06-01
 
 ## Current truth
@@ -23,13 +23,16 @@ SE-CLI now has:
 - operating documentation spine
 - root `AGENTS.md`
 - canonical integrated spec
-- current MCP control-plane upgrade note
+- MCP control-plane upgrade note
 - living build plan
 - minimal TypeScript workspace
 - Render-hosted MCP runtime
 - read-only operating tools
 - routine single-file update lane
 - routine batch update lane
+- P2A schema package scaffold
+- P2A policy package scaffold
+- P2A policy tests
 
 The locked control-plane model is:
 
@@ -54,12 +57,36 @@ Current verified MCP tools:
 - `se.apply_single_file_update`
 - `se.apply_file_batch`
 
-The routine update lanes are bootstrap bridges for ordinary bounded repo updates while the full packet/worker path is being built.
+## P2A files added
+
+- `packages/se-schemas/package.json`
+- `packages/se-schemas/tsconfig.json`
+- `packages/se-schemas/src/primitives.ts`
+- `packages/se-schemas/src/mission.ts`
+- `packages/se-schemas/src/result.ts`
+- `packages/se-schemas/src/packet.ts`
+- `packages/se-schemas/src/boundary.ts`
+- `packages/se-schemas/src/index.ts`
+- `packages/se-policy/package.json`
+- `packages/se-policy/tsconfig.json`
+- `packages/se-policy/src/index.ts`
+- `packages/se-policy/src/test/policy.test.ts`
+- root `package.json` test script update
+
+## Verification status
+
+Execution is not available in this chat, and CI is not configured yet. P2A is implemented but not fully verified.
+
+Expected verification commands:
+
+- `pnpm install`
+- `pnpm build`
+- `pnpm typecheck`
+- `pnpm test`
 
 ## Missing runtime pieces
 
-- P2A schema and policy foundation
-- continuation contracts
+- P2A verification/repair if needed
 - build-list engine
 - mission/job async controller
 - packet builder
@@ -73,4 +100,4 @@ The routine update lanes are bootstrap bridges for ordinary bounded repo updates
 
 ## Next build target
 
-P2A/U005: Add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, policy verdict fixtures, and continuation contracts before packet/worker execution or final mission-level tools are added.
+Verify and repair P2A. After P2A passes build/typecheck/test, move to P2B: build-list engine skeleton.

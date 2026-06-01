@@ -50,3 +50,31 @@ This file records durable decisions. It is not a mission log.
 - Status: pending
 - Decision: The intended open-source posture is non-permissive/strong copyleft, likely AGPL-3.0-only, but the final license file should not be added until the user explicitly approves the license text.
 - Reason: Licensing is a durable legal/product decision and should not be silently finalized.
+
+## D008 - Integrated thin-app autonomy control plane spec is canonical
+
+- Date: 2026-06-01
+- Status: accepted
+- Decision: `docs/INTEGRATED_SPEC.md` is the canonical v1.0 target architecture for SE-CLI unless superseded by a later explicit decision.
+- Reason: The integrated spec aligns the user experience, thin ChatGPT app, control server, build-list execution, packets, workers, GitHub/CI proof, durable state, continuation, and result-packet loop into one coherent system.
+
+## D009 - The ChatGPT App is a thin bridge
+
+- Date: 2026-06-01
+- Status: accepted
+- Decision: The ChatGPT-facing app should expose high-level mission/list/status/result tools and should not own serious business logic or become a filesystem/shell/git/deploy surface.
+- Reason: Keeping the app thin reduces approval friction and keeps state, policy, and execution coordination in the server.
+
+## D010 - Build lists are executable project structure
+
+- Date: 2026-06-01
+- Status: accepted
+- Decision: Build lists should become executable structures with item status, dependencies, scope, allowed paths, allowed commands, proof requirements, stop conditions, and continuation behavior.
+- Reason: This allows large projects to run as many bounded missions rather than one vague mega-task.
+
+## D011 - Result packets are the ChatGPT review surface
+
+- Date: 2026-06-01
+- Status: accepted
+- Decision: Workers/server components should return compact result packets with summaries, changed files, commands/tests, PR/CI references, artifact pointers, failure class, recommended next action, and boundary needs.
+- Reason: ChatGPT should review and repair from structured results, not giant raw log dumps.

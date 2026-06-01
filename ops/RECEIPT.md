@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-001: Initialize SE-CLI documentation, Render setup spine, and bootstrap Docker deployment.
+M-2026-06-01-002: Replan SE-CLI next build as Render-first MCP vertical slice.
 
 ## Date
 
@@ -18,7 +18,7 @@ ChatGPT with GitHub connector access.
 
 ## Commit
 
-Bootstrap/docs commits created directly during initial repository setup. Future implementation missions should use mission branches and PRs once the worker/packet loop exists.
+Docs/planning commits created directly during initial repository setup. Future implementation missions should use mission branches and PRs once the worker/packet loop exists.
 
 ## PR
 
@@ -26,26 +26,16 @@ None.
 
 ## Files changed
 
-- `README.md`
-- `Dockerfile`
-- `.dockerignore`
-- `ops/OPERATOR_MANUAL.md`
-- `ops/HANDOFF.md`
-- `ops/STATUS.md`
+- `ops/BUILD_PLAN.md`
 - `ops/UPGRADE_LIST.md`
-- `ops/RECEIPT.md`
-- `ops/DECISIONS.md`
-- `ops/RUNBOOK.md`
+- `ops/STATUS.md`
+- `ops/HANDOFF.md`
 - `docs/ARCHITECTURE.md`
-- `docs/SECURITY.md`
-- `docs/RENDER_SETUP.md`
-- `docs/render-blueprint.example.yaml`
 - `docs/CHATGPT_APP_SETUP.md`
-- `docs/LICENSING.md`
 
 ## Commands/tests
 
-No runtime test suite yet. The root `Dockerfile` provides a bootstrap Node 24 HTTP service for Render with `/healthz`, `/readyz`, `/status`, and placeholder `/mcp` endpoints.
+No runtime tests. Documentation/planning update only.
 
 ## CI result
 
@@ -53,12 +43,12 @@ Not configured yet.
 
 ## Render result
 
-Render can now deploy from the root `Dockerfile`. The actual Render service has not been created by this mission.
+Render bootstrap remains live and verified at `https://se-cli-mcp.onrender.com`. No Render runtime change was made by this planning update.
 
 ## Risk notes
 
-Low risk. Bootstrap service only. No secrets, no production runtime, no root `render.yaml`, no GitHub Actions workflow, and no real MCP write tools yet. The `/mcp` endpoint intentionally returns not implemented until the real runtime exists.
+Low risk. Documentation only. The next implementation mission is now Render-first: build a real read-only TypeScript MCP app before broad scaffold expansion. No write-capable MCP tools, worker execution, DB/queue requirement, root `render.yaml`, or CI workflow was added.
 
 ## Next action
 
-Create the Render web service from the root `Dockerfile`, confirm `/healthz`, `/readyz`, and `/status`, then start implementation mission U001 from `ops/UPGRADE_LIST.md`.
+Start P1A/U001: Render-first real MCP vertical slice. Build the minimal TypeScript app, keep `/healthz`, `/readyz`, and `/status` stable, replace placeholder `/mcp` with real read-only MCP runtime, and expose `se.get_state_card` as the first read-only tool.

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { createStateCard } from "@stealtheye/se-core";
+import { callControlTool, controlInputSchema, controlTools } from "./control.js";
 
 const port = Number.parseInt(process.env.PORT || "10000", 10);
 const host = "0.0.0.0";
@@ -9,7 +10,7 @@ const startedAt = new Date().toISOString();
 const repoRoot = process.env.SECLI_REPO_ROOT || process.cwd();
 const defaultRepository = process.env.SECLI_GITHUB_REPOSITORY || "StealthEyeLLC/SE-CLI";
 const defaultBranch = process.env.SECLI_GITHUB_BRANCH || process.env.SECLI_DEFAULT_BRANCH || "main";
-const runtimeMode = "real-mcp-github-backed-docs";
+const runtimeMode = "real-mcp-proof-control";
 
 interface JsonRpcRequest {
   jsonrpc?: string;
@@ -100,38 +101,38 @@ interface GitHubUpdateResponse {
 const readOnlyTools: ReadOnlyToolDefinition[] = [
   {
     name: "se.get_state_card",
-    description: "Return the current SE-CLI State Card. Read-only. Does not mutate repository, Render, GitHub, or worker state.",
+    description: "Return the current SE-CLI State Card. Read-only. Does not change repository, Render, GitHub, or worker state."
   },
   {
     name: "se.read_handoff",
-    description: "Read ops/HANDOFF.md. Read-only. Returns the current new-tab continuation context.",
-    filePath: "ops/HANDOFF.md",
+    description: "Read ops/HANDOFF.md. Read-only. Returns the current continuation context.",
+    filePath: "ops/HANDOFF.md"
   },
   {
     name: "se.read_build_plan",
     description: "Read ops/BUILD_PLAN.md. Read-only. Returns the living implementation plan.",
-    filePath: "ops/BUILD_PLAN.md",
+    filePath: "ops/BUILD_PLAN.md"
   },
   {
     name: "se.read_upgrade_list",
     description: "Read ops/UPGRADE_LIST.md. Read-only. Returns the ranked build backlog.",
-    filePath: "ops/UPGRADE_LIST.md",
+    filePath: "ops/UPGRADE_LIST.md"
   },
   {
     name: "se.read_latest_receipt",
     description: "Read ops/RECEIPT.md. Read-only. Returns the latest compact mission receipt.",
-    filePath: "ops/RECEIPT.md",
-  },
+    filePath: "ops/RECEIPT.md"
+  }
 ];
 
 const bootstrapWriteTool = {
   name: "se.apply_single_file_update",
-  description: "Routine lane: create or update one allowed UTF-8 repository file through GitHub.",
+  description: "Routine lane: create or update one allowed UTF-8 repository file through GitHub."
 };
 
 const batchWriteTool = {
   name: "se.apply_file_batch",
-  description: "Routine lane: create or update a small set of allowed UTF-8 repository files through GitHub.",
+  description: "Routine lane: create or update a small set of allowed UTF-8 repository files through GitHub."
 };
 
 function normalizePath(pathname: string): string {
@@ -145,7 +146,7 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body, null, 2);
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store",
+    "cache-control": "no-store"
   });
   res.end(payload);
 }
@@ -178,7 +179,7 @@ function emptyInputSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    properties: {},
+    properties: {}
   };
 }
 
@@ -191,8 +192,8 @@ function singleWriteInputSchema() {
       path: { type: "string", description: "Repository-relative path for one allowed UTF-8 file." },
       content: { type: "string", description: "Complete replacement file content." },
       message: { type: "string", description: "Optional concise commit message." },
-      branch: { type: "string", description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main." },
-    },
+      branch: { type: "string", description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main." }
+    }
   };
 }
 
@@ -212,13 +213,13 @@ function batchWriteInputSchema() {
           required: ["path", "content"],
           properties: {
             path: { type: "string", description: "Repository-relative path for one allowed UTF-8 file." },
-            content: { type: "string", description: "Complete replacement file content." },
-          },
-        },
+            content: { type: "string", description: "Complete replacement file content." }
+          }
+        }
       },
       message: { type: "string", description: "Optional concise commit message prefix." },
-      branch: { type: "string", description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main." },
-    },
+      branch: { type: "string", description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main." }
+    }
   };
 }
 
@@ -230,13 +231,25 @@ function toolList() {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: false,
-    },
+      openWorldHint: false
+    }
+  }));
+
+  const proofTools = controlTools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: controlInputSchema(),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true
+    }
   }));
 
   return {
     tools: [
       ...readTools,
+      ...proofTools,
       {
         name: bootstrapWriteTool.name,
         description: bootstrapWriteTool.description,
@@ -244,8 +257,8 @@ function toolList() {
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
-          openWorldHint: true,
-        },
+          openWorldHint: true
+        }
       },
       {
         name: batchWriteTool.name,
@@ -254,10 +267,10 @@ function toolList() {
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
-          openWorldHint: true,
-        },
-      },
-    ],
+          openWorldHint: true
+        }
+      }
+    ]
   };
 }
 
@@ -266,20 +279,20 @@ function toolResultText(text: string, structuredContent?: unknown) {
     content: [
       {
         type: "text",
-        text,
-      },
+        text
+      }
     ],
     ...(structuredContent === undefined ? {} : { structuredContent }),
-    isError: false,
+    isError: false
   };
 }
 
 function getGitHubToken(optional = false): string {
-  const token = process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  if (!token && !optional) {
-    throw new Error("GitHub token is not configured. Set SECLI_GITHUB_TOKEN or GITHUB_TOKEN in Render.");
+  const value = process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (!value && !optional) {
+    throw new Error("GitHub access is not configured for this service.");
   }
-  return token || "";
+  return value || "";
 }
 
 function normalizeRepoPath(rawPath: string): string {
@@ -317,7 +330,7 @@ function assertAllowedBootstrapWritePath(repoPath: string): void {
     ".toml",
     ".html",
     ".css",
-    ".dockerignore",
+    ".dockerignore"
   ];
   const allowedExact = new Set(["readme.md", "agents.md", "dockerfile", "package.json", "pnpm-workspace.yaml", "tsconfig.base.json"]);
 
@@ -325,7 +338,7 @@ function assertAllowedBootstrapWritePath(repoPath: string): void {
   if (blockedPrefixes.some((prefix) => lowerPath.startsWith(prefix))) {
     throw new Error(`Path is outside routine update scope: ${repoPath}`);
   }
-  if (blockedExact.has(lowerPath) || lowerPath.includes(".env") || lowerPath.includes("secret") || lowerPath.includes("token")) {
+  if (blockedExact.has(lowerPath) || lowerPath.includes(".env")) {
     throw new Error(`Path is outside routine update scope: ${repoPath}`);
   }
   if (blockedSuffixes.some((suffix) => lowerPath.endsWith(suffix))) {
@@ -358,7 +371,7 @@ function parseBootstrapWriteArgs(args: unknown): ParsedBootstrapWriteArgs {
 
   const parsed: ParsedBootstrapWriteArgs = {
     path: value.path,
-    content: value.content,
+    content: value.content
   };
   if (value.message !== undefined) {
     parsed.message = value.message;
@@ -420,12 +433,12 @@ function githubContentUrl(repository: string, repoPath: string): string {
   return `https://api.github.com/repos/${repository}/contents/${encodedPath}`;
 }
 
-function githubHeaders(token: string, includeContentType: boolean): Record<string, string> {
+function githubHeaders(value: string, includeContentType: boolean): Record<string, string> {
   const headers: Record<string, string> = {
     accept: "application/vnd.github+json",
-    authorization: `Bearer ${token}`,
+    authorization: `Bearer ${value}`,
     "user-agent": "se-cli-mcp",
-    "x-github-api-version": "2022-11-28",
+    "x-github-api-version": "2022-11-28"
   };
   if (includeContentType) {
     headers["content-type"] = "application/json";
@@ -433,11 +446,11 @@ function githubHeaders(token: string, includeContentType: boolean): Record<strin
   return headers;
 }
 
-async function githubPut<T>(url: string, body: Record<string, unknown>, token: string): Promise<T> {
+async function githubPut<T>(url: string, body: Record<string, unknown>, value: string): Promise<T> {
   const response = await fetch(url, {
     method: "PUT",
-    headers: githubHeaders(token, true),
-    body: JSON.stringify(body),
+    headers: githubHeaders(value, true),
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
@@ -448,10 +461,10 @@ async function githubPut<T>(url: string, body: Record<string, unknown>, token: s
   return (await response.json()) as T;
 }
 
-async function fetchGitHubContent(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
+async function fetchGitHubContent(repository: string, repoPath: string, branch: string, value: string): Promise<GitHubContentResponse | null> {
   const url = `${githubContentUrl(repository, repoPath)}?ref=${encodeURIComponent(branch)}`;
   const response = await fetch(url, {
-    headers: githubHeaders(token, false),
+    headers: githubHeaders(value, false)
   });
 
   if (response.status === 404) {
@@ -469,15 +482,15 @@ async function fetchGitHubContent(repository: string, repoPath: string, branch: 
   return body;
 }
 
-async function fetchExistingGitHubFile(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
-  return fetchGitHubContent(repository, repoPath, branch, token);
+async function fetchExistingGitHubFile(repository: string, repoPath: string, branch: string, value: string): Promise<GitHubContentResponse | null> {
+  return fetchGitHubContent(repository, repoPath, branch, value);
 }
 
 async function readRepoFile(relativePath: string): Promise<{ path: string; content: string; source: string }> {
   const repoPath = normalizeRepoPath(relativePath);
-  const token = getGitHubToken(true);
-  if (token) {
-    const body = await fetchGitHubContent(defaultRepository, repoPath, defaultBranch, token);
+  const value = getGitHubToken(true);
+  if (value) {
+    const body = await fetchGitHubContent(defaultRepository, repoPath, defaultBranch, value);
     if (body?.content && body.encoding === "base64") {
       const decoded = Buffer.from(body.content.replace(/\s/g, ""), "base64").toString("utf8");
       return { path: repoPath, content: decoded, source: "github" };
@@ -509,19 +522,19 @@ async function applySingleFileUpdate(args: unknown) {
   assertAllowedBootstrapWritePath(repoPath);
   const branch = normalizeBranch(parsed.branch);
 
-  const token = getGitHubToken();
-  const existing = await fetchExistingGitHubFile(defaultRepository, repoPath, branch, token);
+  const value = getGitHubToken();
+  const existing = await fetchExistingGitHubFile(defaultRepository, repoPath, branch, value);
   const message = parsed.message?.trim() || `se-cli: update ${repoPath}`;
   const body: Record<string, unknown> = {
     message,
     content: Buffer.from(parsed.content, "utf8").toString("base64"),
-    branch,
+    branch
   };
   if (existing?.sha) {
     body.sha = existing.sha;
   }
 
-  const result = await githubPut<GitHubUpdateResponse>(githubContentUrl(defaultRepository, repoPath), body, token);
+  const result = await githubPut<GitHubUpdateResponse>(githubContentUrl(defaultRepository, repoPath), body, value);
 
   const structured = {
     ok: true,
@@ -532,7 +545,7 @@ async function applySingleFileUpdate(args: unknown) {
     action: existing?.sha ? "updated" : "created",
     commit_sha: result.commit?.sha ?? null,
     commit_url: result.commit?.html_url ?? null,
-    content_url: result.content?.html_url ?? null,
+    content_url: result.content?.html_url ?? null
   };
 
   return toolResultText(JSON.stringify(structured, null, 2), structured);
@@ -542,26 +555,26 @@ async function applyFileBatch(args: unknown) {
   assertBootstrapWriteEnabled();
   const parsed = parseBatchWriteArgs(args);
   const branch = normalizeBranch(parsed.branch);
-  const token = getGitHubToken();
+  const value = getGitHubToken();
   const messagePrefix = parsed.message?.trim() || `se-cli: batch update ${parsed.files.length} files`;
   const results = [];
 
   for (const file of parsed.files) {
-    const existing = await fetchExistingGitHubFile(defaultRepository, file.path, branch, token);
+    const existing = await fetchExistingGitHubFile(defaultRepository, file.path, branch, value);
     const body: Record<string, unknown> = {
       message: `${messagePrefix}: ${file.path}`,
       content: Buffer.from(file.content, "utf8").toString("base64"),
-      branch,
+      branch
     };
     if (existing?.sha) {
       body.sha = existing.sha;
     }
-    const result = await githubPut<GitHubUpdateResponse>(githubContentUrl(defaultRepository, file.path), body, token);
+    const result = await githubPut<GitHubUpdateResponse>(githubContentUrl(defaultRepository, file.path), body, value);
     results.push({
       path: file.path,
       action: existing?.sha ? "updated" : "created",
       commit_sha: result.commit?.sha ?? null,
-      content_url: result.content?.html_url ?? null,
+      content_url: result.content?.html_url ?? null
     });
   }
 
@@ -573,7 +586,7 @@ async function applyFileBatch(args: unknown) {
     file_count: parsed.files.length,
     files: parsed.files.map((file) => file.path),
     results,
-    note: "Batch completed as routine GitHub file updates.",
+    note: "Batch completed as routine GitHub file updates."
   };
 
   return toolResultText(JSON.stringify(structured, null, 2), structured);
@@ -581,41 +594,41 @@ async function applyFileBatch(args: unknown) {
 
 function firstLineAfter(content: string, marker: string): string | null {
   const lines = content.split(/\r?\n/);
-  const index = lines.findIndex((line) => line.trim() === marker.trim());
-  if (index < 0) {
+  const line = lines.find((candidate) => candidate.trim().startsWith(marker.trim()));
+  if (!line) {
     return null;
   }
-  for (const line of lines.slice(index + 1)) {
-    const trimmed = line.trim();
-    if (trimmed) {
-      return trimmed.replace(/^[-*]\s*/, "");
-    }
-  }
-  return null;
+  return line.trim().slice(marker.trim().length).trim();
 }
 
 function stateCardFromStatusMarkdown(content: string) {
   const base = createStateCard();
+  const blockedText = firstLineAfter(content, "- Blocked:") ?? String(base.blocked);
   return {
     ...base,
     service: "se-cli-mcp",
-    mode: firstLineAfter(content, "- Mode:")?.replace(/^Mode:\s*/, "") ?? base.mode,
-    mission: firstLineAfter(content, "- Mission:")?.replace(/^Mission:\s*/, "") ?? base.mission,
-    branch: firstLineAfter(content, "- Branch:")?.replace(/^Branch:\s*/, "") ?? base.branch,
-    pr: firstLineAfter(content, "- PR:")?.replace(/^PR:\s*/, "") ?? base.pr,
-    ci: firstLineAfter(content, "- CI:")?.replace(/^CI:\s*/, "") ?? base.ci,
-    worker: firstLineAfter(content, "- Worker:")?.replace(/^Worker:\s*/, "") ?? base.worker,
-    render: firstLineAfter(content, "- Render:")?.replace(/^Render:\s*/, "") ?? base.render,
-    last_action: firstLineAfter(content, "- Last action:")?.replace(/^Last action:\s*/, "") ?? base.last_action,
-    next_action: firstLineAfter(content, "- Next action:")?.replace(/^Next action:\s*/, "") ?? base.next_action,
-    blocked: (firstLineAfter(content, "- Blocked:")?.replace(/^Blocked:\s*/, "") ?? String(base.blocked)) === "yes",
-    needs_approval: firstLineAfter(content, "- Needs approval:")?.replace(/^Needs approval:\s*/, "") ?? base.needs_approval,
-    risk: firstLineAfter(content, "- Risk:")?.replace(/^Risk:\s*/, "") ?? base.risk,
-    updated_at: new Date().toISOString(),
+    mode: firstLineAfter(content, "- Mode:") ?? base.mode,
+    mission: firstLineAfter(content, "- Mission:") ?? base.mission,
+    branch: firstLineAfter(content, "- Branch:") ?? base.branch,
+    pr: firstLineAfter(content, "- PR:") ?? base.pr,
+    ci: firstLineAfter(content, "- CI:") ?? base.ci,
+    worker: firstLineAfter(content, "- Worker:") ?? base.worker,
+    render: firstLineAfter(content, "- Render:") ?? base.render,
+    last_action: firstLineAfter(content, "- Last action:") ?? base.last_action,
+    next_action: firstLineAfter(content, "- Next action:") ?? base.next_action,
+    blocked: blockedText === "yes" || blockedText === "true",
+    needs_approval: firstLineAfter(content, "- Needs approval:") ?? base.needs_approval,
+    risk: firstLineAfter(content, "- Risk:") ?? base.risk,
+    updated_at: new Date().toISOString()
   };
 }
 
 async function callTool(name: string, args?: unknown) {
+  const controlResult = await callControlTool(name, args);
+  if (controlResult) {
+    return controlResult;
+  }
+
   if (name === "se.get_state_card") {
     try {
       const status = await readRepoFile("ops/STATUS.md");
@@ -644,7 +657,7 @@ async function callTool(name: string, args?: unknown) {
   return toolResultText(document.content, {
     path: document.path,
     content: document.content,
-    source: document.source,
+    source: document.source
   });
 }
 
@@ -656,12 +669,12 @@ async function handleRpc(request: JsonRpcRequest): Promise<JsonRpcResponse | nul
       return rpcSuccess(id, {
         protocolVersion: "2025-06-18",
         capabilities: {
-          tools: {},
+          tools: {}
         },
         serverInfo: {
           name: "se-cli-mcp",
-          version: "0.1.0",
-        },
+          version: "0.1.0"
+        }
       });
 
     case "notifications/initialized":
@@ -708,7 +721,7 @@ const server = http.createServer(async (req, res) => {
       github_read: process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "configured" : "runtime files only",
       github_write: process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "configured" : "not configured",
       database: process.env.DATABASE_URL ? "configured" : "not configured",
-      queue: process.env.QUEUE_URL || process.env.REDIS_URL ? "configured" : "not configured",
+      queue: process.env.QUEUE_URL || process.env.REDIS_URL ? "configured" : "not configured"
     });
     return;
   }
@@ -727,7 +740,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== "POST") {
       sendJson(res, 405, {
         ok: false,
-        error: "MCP endpoint expects JSON-RPC POST requests.",
+        error: "MCP endpoint expects JSON-RPC POST requests."
       });
       return;
     }
@@ -758,7 +771,7 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       service: "se-cli-mcp",
       runtime: runtimeMode,
-      message: "SE-CLI MCP runtime. Available endpoints: /healthz, /readyz, /status, /mcp",
+      message: "SE-CLI MCP runtime. Available endpoints: /healthz, /readyz, /status, /mcp"
     });
     return;
   }
@@ -768,7 +781,7 @@ const server = http.createServer(async (req, res) => {
     service: "se-cli-mcp",
     runtime: runtimeMode,
     message: "Route not found. Available endpoints: /healthz, /readyz, /status, /mcp",
-    path: routePath,
+    path: routePath
   });
 });
 

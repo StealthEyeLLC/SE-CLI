@@ -10,7 +10,7 @@ The user talks to ChatGPT. ChatGPT plans and calls the SE-CLI MCP control plane.
 
 ## Current repository state
 
-This repository currently contains the operating documentation spine only. Runtime code, MCP server code, worker code, CI, and Render deployment files should be added through approved SE-CLI missions.
+This repository currently contains the operating documentation spine, living build plan, and Render bootstrap Docker service. Runtime MCP server code, worker code, CI, and production Render Blueprint files should be added through approved SE-CLI missions.
 
 ## Core UX target
 
@@ -27,7 +27,7 @@ Normal work should require one mission-level approval, not per-file, per-command
 5. A local worker executes the packet in an isolated branch/worktree.
 6. The worker commits, pushes, and opens or updates a PR.
 7. GitHub Actions verifies the work.
-8. MCP updates status, receipt, handoff, and upgrade list.
+8. MCP updates status, receipt, handoff, upgrade list, and build plan when needed.
 9. ChatGPT reports the result and next safest action.
 
 ## Operating docs
@@ -35,6 +35,7 @@ Normal work should require one mission-level approval, not per-file, per-command
 - `ops/OPERATOR_MANUAL.md` - how a new ChatGPT tab/operator runs the system.
 - `ops/HANDOFF.md` - exact current continuation state.
 - `ops/STATUS.md` - current truth/state card.
+- `ops/BUILD_PLAN.md` - living implementation plan and phase map.
 - `ops/UPGRADE_LIST.md` - ranked next upgrades.
 - `ops/RECEIPT.md` - latest compact mission receipt.
 - `ops/DECISIONS.md` - durable architecture/product decisions.

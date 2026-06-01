@@ -6,6 +6,12 @@ SE-CLI is a ChatGPT-operated mission control plane.
 
 **Mission -> Packet -> Worker -> PR -> Proof -> Handoff**
 
+## Current architecture direction
+
+The immediate next build is Render-first, not scaffold-first.
+
+The repo already has a live Render bootstrap service. The next implementation mission should replace the placeholder HTTP server with a real TypeScript MCP runtime while keeping the scope read-only and safe.
+
 ## Components
 
 ### ChatGPT
@@ -14,9 +20,19 @@ Primary user interface and planning surface. The user gives goals and approvals 
 
 ### SE-CLI MCP server
 
-The control plane. It should run on Render as a web service once runtime code exists.
+The control plane. It runs on Render as a web service.
 
-Responsibilities:
+Immediate P1A responsibility:
+
+- keep `/healthz` stable
+- keep `/readyz` stable
+- keep `/status` stable
+- replace placeholder `/mcp` with a real MCP endpoint
+- expose first read-only tool: `se.get_state_card`
+- require no DB or queue yet
+- expose no write tools yet
+
+Later responsibilities:
 
 - expose read/status tools
 - expose bounded mission tools
@@ -25,14 +41,14 @@ Responsibilities:
 - enforce policy gates
 - enqueue worker jobs
 - read GitHub/CI/Render status
-- update handoff, status, receipt, and upgrade list
+- update handoff, status, build plan, receipt, and upgrade list
 - provide durable memory access
 
 The MCP server must not become a generic remote shell.
 
 ### Durable storage
 
-Postgres is the authoritative runtime store for:
+Postgres will become the authoritative runtime store for:
 
 - missions
 - jobs
@@ -44,18 +60,20 @@ Postgres is the authoritative runtime store for:
 - worker leases
 - operational memory
 
+P1A must not require Postgres. It should use static/mock state derived from repo docs until durable storage is implemented.
+
 Render disk and ChatGPT memory are not authoritative state.
 
 ### Queue/cache
 
-Render Key Value/Valkey or a Postgres-backed queue should handle:
+Render Key Value/Valkey or a Postgres-backed queue should later handle:
 
 - job queues
 - lease locks
 - worker heartbeat acceleration
 - short-lived status/cache data
 
-Durable mission truth still belongs in Postgres.
+P1A must not require queue/cache.
 
 ### Local worker
 
@@ -78,6 +96,8 @@ Responsibilities:
 - push mission branch
 - open/update PR
 - report structured result
+
+The worker is planned after the real read-only MCP app exists.
 
 ### GitHub
 
@@ -109,16 +129,33 @@ Recommended checks:
 
 Always-on hosted control plane.
 
-Recommended resources once code exists:
+Current resource:
 
 - web service: `se-cli-mcp`
+- URL: `https://se-cli-mcp.onrender.com`
+- service id: `srv-d8ehlvvavr4c738olbm0`
+
+Recommended later resources:
+
 - background worker: `se-cli-maintenance`
 - Postgres: `se-cli-db`
 - Key Value/Valkey: `se-cli-kv`
 
 Render is not the heavy build machine. Heavy builds run in local workers or GitHub Actions.
 
-## Normal mission flow
+## P1A normal mission flow
+
+1. Add minimal TypeScript scaffold.
+2. Add real `apps/mcp-server` app.
+3. Preserve `/healthz`, `/readyz`, and `/status`.
+4. Replace placeholder `/mcp` with real read-only MCP runtime.
+5. Add `se.get_state_card` tool.
+6. Update Dockerfile to start the real app.
+7. Deploy to Render.
+8. Verify endpoints.
+9. Update status, handoff, receipt, and build plan.
+
+## Full normal mission flow, later
 
 1. ChatGPT reads State Card.
 2. ChatGPT proposes mission.
@@ -131,28 +168,32 @@ Render is not the heavy build machine. Heavy builds run in local workers or GitH
 9. Worker commits and pushes branch.
 10. Worker opens/updates PR.
 11. GitHub Actions verifies.
-12. MCP updates status/receipt/handoff/upgrade list.
+12. MCP updates status/receipt/handoff/upgrade list/build plan.
 13. ChatGPT reports final State Card.
 
 ## Execution lanes
 
-### Lane 1: MCP direct edit
+### Lane 1: MCP read/status
 
-Small safe changes such as status, handoff, receipt, and upgrade-list updates.
+Current next lane. Read-only tools inspect state and do not mutate files.
 
-### Lane 2: work packet/local worker
+### Lane 2: MCP direct edit
+
+Later lane for small safe changes such as status, handoff, receipt, and upgrade-list updates.
+
+### Lane 3: work packet/local worker
 
 Main lane for real coding, many files, package installs, tests, Docker builds, migrations, and CLI smoke checks.
 
-### Lane 3: GitHub Actions proof
+### Lane 4: GitHub Actions proof
 
 Cloud proof layer for every serious change.
 
-### Lane 4: remote visual fallback, future only
+### Lane 5: remote visual fallback, future only
 
 Optional later lane for dashboards, OAuth screens, screenshots, and browser/UI tasks that cannot be done cleanly through APIs or scripts.
 
-## Work packet contents
+## Work packet contents, later
 
 A packet should contain:
 
@@ -195,7 +236,7 @@ The system should always reduce to:
 - Git conflict
 - unsafe packet
 - stale expected hashes
-- secret exposure
+- accidental sensitive content
 - permission drift
 
 All recovery should begin from repository docs, GitHub state, Render state, and durable storage, not chat memory.

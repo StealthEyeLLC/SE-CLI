@@ -16,19 +16,31 @@ This file is the ranked build backlog. The top safe item should normally become 
 
 ## Items
 
-### U001 - Create repository/package scaffold
+### U001 - Render-first real MCP vertical slice
 
-- Priority score: 62
+- Priority score: 76
 - Status: next
-- Why now: Runtime code cannot begin cleanly until the monorepo/package spine exists.
-- Unblocks: TypeScript packages, MCP server, worker, tests, CI.
-- Risk reduced: Prevents ad hoc file layout and root document forest.
+- Why now: The fastest path to usefulness is replacing the Render bootstrap placeholder with a real read-only MCP app before broad scaffolding.
+- Unblocks: ChatGPT app connection, real State Card reads, MCP tool testing, future write/packet tools.
+- Risk reduced: Proves the deployed control-plane path early while keeping tools read-only.
 - Effort: medium
-- Blast radius: low
-- Acceptance tests: `pnpm install`, `pnpm typecheck`, `pnpm test` placeholders or real commands pass.
+- Blast radius: normal
+- Acceptance tests: `pnpm install`, `pnpm build`, `pnpm typecheck`, `pnpm test`, Docker build, Render deploy, `/healthz`, `/readyz`, `/status`, `/mcp`, and read-only `se.get_state_card` tool all work.
 - Last touched: 2026-06-01
 
-### U002 - Add schemas and normal/elevated mission policy tests
+### U002 - Focused repository/package scaffold expansion
+
+- Priority score: 61
+- Status: queued
+- Why now: After the real MCP app exists, expand only the packages needed for packets, workers, policy, memory, and receipts.
+- Unblocks: packet creation, worker execution, GitHub integration, durable memory.
+- Risk reduced: Prevents decorative monorepo structure before a working app exists.
+- Effort: medium
+- Blast radius: low
+- Acceptance tests: existing real MCP app still deploys; package boundaries are useful; base scripts still pass.
+- Last touched: 2026-06-01
+
+### U003 - Add schemas and normal/elevated mission policy tests
 
 - Priority score: 60
 - Status: queued
@@ -37,22 +49,22 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Risk reduced: Blocks unsafe packets early.
 - Effort: medium
 - Blast radius: low
-- Acceptance tests: Safe fixtures pass; unsafe path/command/secret fixtures fail.
+- Acceptance tests: Safe fixtures pass; unsafe path/command/credential-like fixtures fail.
 - Last touched: 2026-06-01
 
-### U003 - Add read-only MCP server and State Card tool
+### U004 - Complete read-only MCP tools
 
-- Priority score: 56
+- Priority score: 58
 - Status: queued
 - Why now: ChatGPT needs a low-risk way to inspect repo state before launching missions.
 - Unblocks: Natural-language operating loop.
 - Risk reduced: Establishes read-only tool surface before writes.
 - Effort: medium
 - Blast radius: low
-- Acceptance tests: `se.get_state_card` returns structured current state.
+- Acceptance tests: `se.get_state_card`, `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt` return structured data.
 - Last touched: 2026-06-01
 
-### U004 - Add work packet creation and validation
+### U005 - Add work packet creation and validation
 
 - Priority score: 55
 - Status: queued
@@ -64,11 +76,11 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Acceptance tests: Packet hash/validation fixtures pass; invalid packets are rejected.
 - Last touched: 2026-06-01
 
-### U005 - Add local worker fixture execution
+### U006 - Add local worker fixture execution
 
 - Priority score: 53
 - Status: queued
-- Why now: Worker must prove lease/verify/apply/test/report before real repo mutation.
+- Why now: Worker must prove lease/verify/apply/report before real repo mutation.
 - Unblocks: Branch/PR loop.
 - Risk reduced: Confirms scripts run only inside packets.
 - Effort: medium
@@ -76,7 +88,7 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Acceptance tests: Safe fixture executes; unsafe command/path fixture stops.
 - Last touched: 2026-06-01
 
-### U006 - Add Git branch, commit, push, and PR automation
+### U007 - Add Git branch, commit, push, and PR automation
 
 - Priority score: 50
 - Status: queued
@@ -88,7 +100,7 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Acceptance tests: One packet creates one mission branch and PR.
 - Last touched: 2026-06-01
 
-### U007 - Add GitHub Actions CI proof workflow
+### U008 - Add GitHub Actions CI proof workflow
 
 - Priority score: 49
 - Status: queued
@@ -100,7 +112,7 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Acceptance tests: typecheck/test/build/policy/docs checks run on PR.
 - Last touched: 2026-06-01
 
-### U008 - Add receipt, handoff, status, and upgrade auto-update
+### U009 - Add receipt, handoff, status, build plan, and upgrade auto-update
 
 - Priority score: 46
 - Status: queued
@@ -109,10 +121,10 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Risk reduced: Prevents stale operational docs.
 - Effort: medium
 - Blast radius: low
-- Acceptance tests: Mission closure updates all four docs consistently.
+- Acceptance tests: Mission closure updates all operating docs consistently.
 - Last touched: 2026-06-01
 
-### U009 - Add Postgres durable mission/memory state
+### U010 - Add Postgres durable mission/memory state
 
 - Priority score: 45
 - Status: queued
@@ -124,19 +136,19 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Acceptance tests: migrations run; mission/job/event/receipt/handoff rows round-trip.
 - Last touched: 2026-06-01
 
-### U010 - Add Render deployment and status adapter
+### U011 - Add Render runtime hardening and status adapter
 
 - Priority score: 42
 - Status: queued
-- Why now: MCP server needs stable hosted endpoint once runtime code exists.
-- Unblocks: ChatGPT custom app connection.
+- Why now: The real MCP service needs DB/queue readiness, Render status, and eventually a production Blueprint.
+- Unblocks: stable hosted control plane.
 - Risk reduced: Standardizes deployment before manual drift.
 - Effort: medium
 - Blast radius: normal
-- Acceptance tests: `/healthz`, `/readyz`, and MCP endpoint reachable on Render.
+- Acceptance tests: `/healthz`, `/readyz`, `/status`, and MCP endpoint remain stable on Render with dependency readiness.
 - Last touched: 2026-06-01
 
-### U011 - Add elevated mission protocol
+### U012 - Add elevated mission protocol
 
 - Priority score: 39
 - Status: queued
@@ -148,7 +160,7 @@ This file is the ranked build backlog. The top safe item should normally become 
 - Acceptance tests: elevated fixtures require elevated approval metadata.
 - Last touched: 2026-06-01
 
-### U012 - Add research mode
+### U013 - Add research mode
 
 - Priority score: 30
 - Status: later

@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-007: Make SE-CLI read tools GitHub-backed.
+M-2026-06-01-008: Add P2A schema and policy contract layer.
 
 ## Date
 
@@ -10,7 +10,7 @@ M-2026-06-01-007: Make SE-CLI read tools GitHub-backed.
 
 ## Actor
 
-ChatGPT through SE-CLI MCP batch update lane.
+ChatGPT through SE-CLI MCP routine update lanes.
 
 ## Branch
 
@@ -22,32 +22,47 @@ None.
 
 ## Files changed
 
-- `apps/mcp-server/src/index.ts`
+- `package.json`
+- `packages/se-schemas/package.json`
+- `packages/se-schemas/tsconfig.json`
+- `packages/se-schemas/src/primitives.ts`
+- `packages/se-schemas/src/mission.ts`
+- `packages/se-schemas/src/result.ts`
+- `packages/se-schemas/src/packet.ts`
+- `packages/se-schemas/src/boundary.ts`
+- `packages/se-schemas/src/index.ts`
+- `packages/se-policy/package.json`
+- `packages/se-policy/tsconfig.json`
+- `packages/se-policy/src/index.ts`
+- `packages/se-policy/src/test/policy.test.ts`
+- `ops/P2A_START.md`
+- `ops/STATUS.md`
+- `ops/HANDOFF.md`
 - `ops/RECEIPT.md`
 
 ## What changed
 
-The MCP server was updated so read tools prefer the latest repository content from GitHub when a GitHub token is configured. This prevents `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt` from returning stale Render-baked docs after SE-CLI writes update GitHub.
+P2A contract layer was implemented as small neutral modules so it can pass through the SE-CLI routine update lane reliably.
 
-`se.get_state_card` and `/status` now try to derive their response from the current `ops/STATUS.md` content before falling back to the package default State Card.
+The repo now has:
 
-Runtime mode was updated to:
-
-- `real-mcp-github-backed-docs`
+- `@stealtheye/se-schemas`
+- `@stealtheye/se-policy`
+- schema contract types for missions, build lists, packets, jobs, workers, results, boundaries, and envelopes
+- policy helpers for routine path/command classification
+- continuation decision helper
+- node test fixture for normal, elevated, invalid path, invalid command, continuation, review, user decision, and result packet views
 
 ## Verification performed
 
-Change was applied through the currently live `se.apply_file_batch` routine lane.
+The files were written through SE-CLI. Build/test execution is still pending because CI/local execution is not configured in this chat.
 
-Full runtime verification requires Render to redeploy and then these tools should be checked:
+Required verification:
 
-- `se.get_state_card`
-- `se.read_handoff`
-- `se.read_build_plan`
-- `se.read_upgrade_list`
-- `se.read_latest_receipt`
-
-Expected result: read tools report `source: github` in structured content and return the latest GitHub docs.
+- `pnpm install`
+- `pnpm build`
+- `pnpm typecheck`
+- `pnpm test`
 
 ## CI result
 
@@ -55,12 +70,12 @@ Not configured yet.
 
 ## Render result
 
-Pending Render redeploy.
+No Render runtime redeploy was required for these package additions unless Render automatically redeploys from main.
 
 ## Risk notes
 
-Low to moderate. Runtime code changed, but behavior is narrow: docs/status reads now prefer GitHub and fall back to runtime files when GitHub read is unavailable.
+Normal risk. This is source code, package wiring, and tests. It does not add worker execution, broad mission write tools, shell tools, DB/queue requirement, production Blueprint, workflow, credential, or license changes.
 
 ## Next action
 
-After Render redeploy, verify the read tools return current docs. Then start P2A/U005: add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, policy verdict fixtures, and continuation contracts before packet/worker execution or final mission-level tools are added.
+Verify and repair P2A. Once build/typecheck/test pass, move to P2B: build-list engine skeleton.

@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-003: Verify Render-hosted read-only MCP tools.
+M-2026-06-01-004: Integrate autonomy control plane spec v1.0.
 
 ## Date
 
@@ -10,7 +10,7 @@ M-2026-06-01-003: Verify Render-hosted read-only MCP tools.
 
 ## Actor
 
-ChatGPT with SE-CLI MCP and GitHub connector access.
+ChatGPT with GitHub connector access.
 
 ## Branch
 
@@ -20,16 +20,39 @@ ChatGPT with SE-CLI MCP and GitHub connector access.
 
 None.
 
-## Files changed in this receipt update
+## Files changed
 
+- `docs/INTEGRATED_SPEC.md`
+- `README.md`
+- `AGENTS.md`
+- `docs/ARCHITECTURE.md`
+- `docs/CHATGPT_APP_SETUP.md`
+- `ops/BUILD_PLAN.md`
+- `ops/OPERATOR_MANUAL.md`
 - `ops/STATUS.md`
 - `ops/HANDOFF.md`
+- `ops/DECISIONS.md`
 - `ops/UPGRADE_LIST.md`
 - `ops/RECEIPT.md`
 
+## What changed
+
+The SE-CLI / ChatGPT Thin-App Autonomy Control Plane spec v1.0 was added and made canonical. Core docs now align around this model:
+
+- ChatGPT is the natural-language commander, reviewer, repair commander, and summarizer.
+- The ChatGPT App/MCP connector is a thin bridge.
+- The SE-CLI server is the stateful control plane.
+- Build lists and missions are scoped approval units.
+- Work packets are execution contracts.
+- Workers are deterministic execution appliances.
+- GitHub PRs and CI provide review/proof.
+- Result packets return to ChatGPT for review, repair, and continuation.
+
 ## Verification performed
 
-SE-CLI MCP tools were called from ChatGPT and returned successfully:
+Documentation-only integration pass. No runtime code changed in this mission.
+
+Previously verified read-only MCP tools remain the current runtime proof:
 
 - `se.get_state_card`
 - `se.read_handoff`
@@ -43,16 +66,12 @@ Not configured yet.
 
 ## Render result
 
-Render service `https://se-cli-mcp.onrender.com` is live and running the read-only MCP runtime. The runtime can read operating docs from `/app/ops` after the Docker image was fixed to include `ops/`.
-
-## Connector note
-
-When GitHub and SE-CLI are both enabled, ChatGPT may fail to expose SE-CLI during redeploy/reset checks. The observed workaround is to turn GitHub off and expose SE-CLI only, then retry.
+No Render runtime change was made by this spec-alignment mission. Existing Render service remains `https://se-cli-mcp.onrender.com` running the read-only MCP runtime.
 
 ## Risk notes
 
-Low risk. Read-only tools only. No write-capable MCP tools, worker execution, DB/queue requirement, production Blueprint, or CI workflow was added.
+Low risk. Documentation and planning alignment only. No write-capable MCP tools, worker execution, DB/queue requirement, production Blueprint, workflow, credential, or license change was added.
 
 ## Next action
 
-Start P2/U003: add schemas and normal/elevated mission policy tests before adding write tools or worker execution.
+Start P2A/U003: add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, and policy verdict fixtures before adding write tools or worker execution.

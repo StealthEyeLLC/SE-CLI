@@ -41,7 +41,7 @@ This file records durable decisions. It is not a mission log.
 
 - Date: 2026-06-01
 - Status: accepted
-- Decision: Render should host the web MCP server, optional background maintenance worker, durable Postgres, and queue/cache. Heavy repo builds should run in local workers or GitHub Actions.
+- Decision: Render should host the web MCP server, optional deterministic background maintenance worker, durable Postgres, and queue/cache. Heavy repo builds should run in local workers or GitHub Actions.
 - Reason: Render is the always-on control plane, not the build machine.
 
 ## D007 - Strong open-source posture, license pending user confirmation
@@ -55,7 +55,7 @@ This file records durable decisions. It is not a mission log.
 
 - Date: 2026-06-01
 - Status: accepted
-- Decision: `docs/INTEGRATED_SPEC.md` is the canonical v1.0 target architecture for SE-CLI unless superseded by a later explicit decision.
+- Decision: `docs/INTEGRATED_SPEC.md` is the canonical v1.0 target architecture for SE-CLI unless superseded by a later explicit decision or addendum.
 - Reason: The integrated spec aligns the user experience, thin ChatGPT app, control server, build-list execution, packets, workers, GitHub/CI proof, durable state, continuation, and result-packet loop into one coherent system.
 
 ## D009 - The ChatGPT App is a thin bridge
@@ -78,3 +78,17 @@ This file records durable decisions. It is not a mission log.
 - Status: accepted
 - Decision: Workers/server components should return compact result packets with summaries, changed files, commands/tests, PR/CI references, artifact pointers, failure class, recommended next action, and boundary needs.
 - Reason: ChatGPT should review and repair from structured results, not giant raw log dumps.
+
+## D012 - No API-charged model loop
+
+- Date: 2026-06-01
+- Status: accepted
+- Decision: SE-CLI must not require OpenAI API usage, token-metered model calls, paid background agents, API-side reasoning controllers, or hidden billable model loops.
+- Reason: The target architecture should work through the user's ChatGPT conversation/app experience, deterministic server behavior, workers, GitHub, CI, and Render without adding API model charges.
+
+## D013 - Deterministic continuation replaces API-side agent continuation
+
+- Date: 2026-06-01
+- Status: accepted
+- Decision: Background continuation may advance mechanical approved states, watch proof, retry configured flakes, requeue expired leases, prepare result packets, and stop at boundaries. Novel reasoning or novel repair requires ChatGPT to be active.
+- Reason: This preserves large build-list execution and low approval friction while avoiding hidden model usage or API charges.

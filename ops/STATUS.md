@@ -2,27 +2,25 @@
 
 ## State Card
 
-- Mission: M-2026-06-01-010, New-tab handoff and control-surface recovery
-- Mode: p2a-verified-green-control-tools-pending-live-deploy
+- Mission: M-2026-06-01-010, new-tab handoff and service-surface check
+- Mode: p2a-green-service-refresh-pending
 - Branch: main
 - PR: none
 - IC: green in GitHub UI after P2A repair
 - Worker: not implemented yet
-- Service: live at `https://se-cli-mcp.onrender.com`, but still exposing the old 7-tool MCP surface at last check
-- Last action: P2A schema/policy contracts were implemented and verified green; proof/status control code was committed but was not live through SE-CLI at last check
-- Next action: in a new tab, refresh tools and check whether `se.get_ic_status`, `se.get_service_status`, and `se.get_proof_packet` are visible; if not, treat it as a service deploy/rebuild issue before P2B
-- Blocked: partially; P2A is verified, but new proof-control tools are pending live deploy
-- Needs approval: none for check/redeploy recovery; normal mission approval before P2B implementation
+- Service: reachable, but the newer proof/status surface is not visible yet
+- Last action: refreshed the available SE-CLI tools and confirmed the live tool list is still the earlier 7-tool set
+- Next action: check the Render-side service refresh state, then refresh tools again
+- Blocked: yes for P2B until the service surface is confirmed or explained
+- Needs approval: none for status checking; normal mission approval before P2B
 - Risk: normal
 - Updated: 2026-06-01
 
 ## Current truth
 
-P2A is implemented and verified green. The failing policy test was repaired by adding `packages/se-policy/scripts/refine.mjs` and wiring it into `packages/se-policy/package.json`.
+P2A remains complete and green.
 
-The GitHub UI showed the integrated check green after repair. The ChatGPT GitHub connector was unreliable for run/status discovery, returning empty arrays even while the UI showed real activity.
-
-SE-CLI is reachable, but at last check the live service exposed only these 7 tools:
+The live SE-CLI tool list still shows:
 
 - `se.get_state_card`
 - `se.read_handoff`
@@ -32,38 +30,24 @@ SE-CLI is reachable, but at last check the live service exposed only these 7 too
 - `se.apply_single_file_update`
 - `se.apply_file_batch`
 
-Committed but not live at last check:
-
-- `apps/mcp-server/src/control.ts`
-- `apps/mcp-server/scripts/allow-ci-path.mjs` wiring update
-
-Expected after successful service redeploy:
+The newer proof/status tools are committed in the repo but are not visible in the live tool list yet:
 
 - `se.get_ic_status`
 - `se.get_service_status`
 - `se.get_proof_packet`
 
-## Key commits
+Soft diagnosis: this looks like the hosted service has not yet refreshed to the newer MCP surface. Do not redo P2A. Check the Render-side service refresh/deploy state and then refresh tools again.
 
-- `52825a88e2cea40d226f99d2e697c16bf280b81e` - P2A policy repair
-- `9f7c65e7044df66d5805a32f5e25d43b9bf0858d` - add proof/service control module
-- `4cce887dca5628f78bcdea2a309a8a9307cd76cf` - wire proof tools into MCP build patcher
+## Next
 
-## Do next
-
-1. Start a new tab.
-2. Refresh tools.
-3. Prefer SE-CLI only if connector visibility gets confused.
-4. Call `se.get_state_card`.
-5. Check whether the three new proof tools are visible.
-6. If visible, call `se.get_proof_packet` and update docs from the result.
-7. If not visible, recover the service deploy first.
-8. Once proof tools are live or deploy issue is understood, begin P2B: build-list engine skeleton.
+1. Confirm the latest Render service revision/status for `se-cli-mcp`.
+2. Refresh the ChatGPT tool list again.
+3. If the proof/status tools appear, call `se.get_proof_packet` and update the ops notes.
+4. Start P2B only after this is resolved or clearly understood.
 
 ## Do not do next
 
 - Do not redo P2A.
-- Do not fight the ChatGPT GitHub connector for authoritative check status.
-- Do not start broad worker execution yet.
+- Do not start P2B yet.
+- Do not add worker execution.
 - Do not add a generic shell tool.
-- Do not treat ChatGPT memory as authoritative; use repo docs as handoff state.

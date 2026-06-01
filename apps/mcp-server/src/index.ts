@@ -274,6 +274,21 @@ function toolList() {
   };
 }
 
+function publicToolSurface() {
+  const listed = toolList().tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description
+  }));
+  return {
+    ok: true,
+    service: "se-cli-mcp",
+    runtime: runtimeMode,
+    tool_count: listed.length,
+    tools: listed,
+    expected_proof_tools_visible: listed.some((tool) => tool.name === "se.get_proof_packet")
+  };
+}
+
 function toolResultText(text: string, structuredContent?: unknown) {
   return {
     content: [
@@ -726,6 +741,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && routePath === "/toolsz") {
+    sendJson(res, 200, publicToolSurface());
+    return;
+  }
+
   if (req.method === "GET" && routePath === "/status") {
     try {
       const status = await readRepoFile("ops/STATUS.md");
@@ -771,7 +791,7 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       service: "se-cli-mcp",
       runtime: runtimeMode,
-      message: "SE-CLI MCP runtime. Available endpoints: /healthz, /readyz, /status, /mcp"
+      message: "SE-CLI MCP runtime. Available endpoints: /healthz, /readyz, /status, /toolsz, /mcp"
     });
     return;
   }
@@ -780,7 +800,7 @@ const server = http.createServer(async (req, res) => {
     ok: false,
     service: "se-cli-mcp",
     runtime: runtimeMode,
-    message: "Route not found. Available endpoints: /healthz, /readyz, /status, /mcp",
+    message: "Route not found. Available endpoints: /healthz, /readyz, /status, /toolsz, /mcp",
     path: routePath
   });
 });

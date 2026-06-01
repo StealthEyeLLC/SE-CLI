@@ -2,7 +2,7 @@
 
 ## Current mission
 
-M-2026-06-01-003: Verify Render-hosted read-only MCP tools.
+M-2026-06-01-004: Integrate autonomy control plane spec v1.0.
 
 ## Current branch
 
@@ -14,23 +14,30 @@ None.
 
 ## Current State Card
 
-- Mission: M-2026-06-01-003, Verify Render-hosted read-only MCP tools
-- Mode: read-only-mcp-verified-next-policy-core
+- Mission: M-2026-06-01-004, Integrate autonomy control plane spec v1.0
+- Mode: integrated-spec-locked-next-p2a
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
 - Render: live service at `https://se-cli-mcp.onrender.com` running `real-mcp-read-only`
-- Last action: verified `se.get_state_card`, `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt`
-- Next action: start P2/U003 schemas and normal/elevated mission policy tests
+- Last action: added canonical integrated spec and aligned core docs around thin-app/control-server/worker/result-packet architecture
+- Next action: start P2A/U003 core envelopes, schemas, authority classes, failure classes, and policy verdict fixtures
 - Blocked: no
-- Needs approval: normal mission approval for P2 implementation work
+- Needs approval: normal mission approval for P2A implementation work
 - Risk: low
 - Updated: 2026-06-01
 
 ## Last completed action
 
-The Render-hosted SE-CLI MCP server is connected to ChatGPT and verified. The read-only MCP tool surface can read the State Card and operating docs from the Render runtime.
+The integrated SE-CLI / ChatGPT Thin-App Autonomy Control Plane spec v1.0 was added as `docs/INTEGRATED_SPEC.md`. Core docs were aligned so the target model is coherent:
+
+- ChatGPT is the natural-language commander/reviewer.
+- The ChatGPT App/MCP connector is thin.
+- The SE-CLI server owns state, missions, packets, queues, integrations, and result compression.
+- Workers are deterministic execution appliances.
+- GitHub PRs and CI provide review/proof.
+- Result packets return to ChatGPT for review, repair, and continuation.
 
 ## Connector exposure note
 
@@ -38,13 +45,15 @@ If ChatGPT stops showing SE-CLI tools during a redeploy or reset check, the obse
 
 ## Next safest action
 
-Start P2/U003 as a normal mission:
+Start P2A/U003 as a normal mission:
 
-1. Add schema package/foundation if needed.
-2. Define the core data contracts for State Card, Mission, Job, Work Packet, Receipt, Handoff, Upgrade Item, Worker Heartbeat, and approval classes.
-3. Add policy fixtures for allowed and disallowed mission shapes.
-4. Add tests proving allowed fixtures pass and disallowed/elevated fixtures are rejected or escalated.
-5. Keep all MCP tools read-only; do not add write tools yet.
+1. Add or expand `packages/se-schemas`.
+2. Add or expand `packages/se-policy`.
+3. Define app/server envelopes.
+4. Define build-list, mission, job, worker, result-packet, boundary-request, authority-class, failure-class, and policy-verdict contracts.
+5. Add fixtures for allowed, elevated, blocked, and invalid mission shapes.
+6. Add tests proving classification and validation behavior.
+7. Keep all MCP tools read-only; do not add write tools yet.
 
 ## Open risks
 
@@ -58,7 +67,7 @@ Start P2/U003 as a normal mission:
 
 - Do not expose write-capable MCP tools before schemas and policy gates exist.
 - Do not add generic command execution.
-- Do not require DB/queue for P2.
+- Do not require DB/queue for P2A.
 - Do not add local model dependencies.
 - Do not create dashboard-first workflow.
 - Do not treat ChatGPT memory as authoritative state.

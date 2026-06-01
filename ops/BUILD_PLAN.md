@@ -10,62 +10,81 @@ ChatGPT plans and reports. The MCP control plane owns state, memory, policy, pac
 
 ## Current build state
 
-- Current phase: P0 - Bootstrap and operating spine
-- Current mode: Render bootstrap verified
+- Current phase: P1A - Render-first real MCP vertical slice
+- Current mode: bootstrap verified; next mission should replace the placeholder with a real read-only MCP app
 - Repo: `StealthEyeLLC/SE-CLI`
 - Render service: `se-cli-mcp`
 - Render URL: `https://se-cli-mcp.onrender.com`
 - Render service id: `srv-d8ehlvvavr4c738olbm0`
 - Bootstrap endpoints verified by user: `/healthz`, `/readyz`, `/status`
-- Runtime status: placeholder bootstrap service only
-- Real MCP runtime: not implemented yet
+- Runtime status: bootstrap placeholder service only
+- Real MCP runtime: next
 - Local worker: not implemented yet
 - CI: not configured yet
 - Database/queue: not configured yet
+
+## Plan correction
+
+The first build plan was too scaffold-first. That was safe, but it delayed the highest-value path: getting a real Render-hosted MCP app connected quickly.
+
+The corrected plan is Render-first:
+
+1. Keep the existing Render bootstrap working.
+2. Add only the TypeScript scaffold needed for the MCP server.
+3. Replace the placeholder `/mcp` response with a real MCP runtime.
+4. Add read-only tools first.
+5. Connect ChatGPT to the real MCP endpoint.
+6. Then build packets, workers, GitHub PR automation, CI, and durable memory.
+
+The goal is not a perfect monorepo before the app. The goal is a working Render MCP control plane as early as possible.
 
 ## Build principles
 
 1. Build big coherent drops, not tiny toy slices.
 2. Keep the user-facing UX inside ChatGPT.
 3. Prefer one mission-level approval over per-file or per-command approvals.
-4. Use work packets for mass file/script execution.
-5. Keep workers deterministic: lease, verify, apply, test, commit, push, report.
-6. Use GitHub Actions as proof before treating serious work as complete.
-7. Keep Render as the always-on control plane, not the heavy build machine.
-8. Do not expose generic shell execution as a ChatGPT-facing tool.
-9. Update `ops/STATUS.md`, `ops/HANDOFF.md`, `ops/RECEIPT.md`, and this file when build state changes.
-10. Do not widen secrets, deploy, workflow, or destructive authority without elevated approval.
+4. Make Render useful early by replacing the bootstrap server with a real read-only MCP runtime.
+5. Add work packets before any write/execution tools.
+6. Keep workers deterministic: lease, verify, apply, test, commit, push, report.
+7. Use GitHub Actions as proof before treating serious work as complete.
+8. Keep Render as the always-on control plane, not the heavy build machine.
+9. Do not expose generic shell execution as a ChatGPT-facing tool.
+10. Update `ops/STATUS.md`, `ops/HANDOFF.md`, `ops/RECEIPT.md`, `ops/UPGRADE_LIST.md`, and this file when build state changes.
+11. Do not widen deploy, workflow, credential, or destructive authority without elevated approval.
 
 ## Milestone map
 
 | Phase | Name | Status | Purpose |
 |---|---|---|---|
-| P0 | Bootstrap and operating spine | in progress | Establish docs, Render bootstrap, and updateable build plan |
-| P1 | Repository/package scaffold | next | Create TypeScript monorepo skeleton and base commands |
+| P0 | Bootstrap and operating spine | complete | Establish docs, Render bootstrap, AGENTS.md, and living build plan |
+| P1A | Render-first real MCP vertical slice | next | Replace bootstrap placeholder with real TypeScript MCP app and read-only State Card tool |
+| P1B | Focused repo/package scaffold | planned | Expand monorepo packages only as needed by the working app |
 | P2 | Schemas and policy core | planned | Define mission, packet, state card, receipt, handoff, and policy schemas |
-| P3 | Read-only MCP runtime | planned | Replace bootstrap server with real MCP service and read tools |
+| P3 | MCP read tools complete | planned | Add handoff, receipt, upgrade list, build plan, and mission inspection tools |
 | P4 | Packet creation without execution | planned | Create, validate, hash, and store work packets |
 | P5 | Local worker fixture execution | planned | Lease and execute safe fixture packets locally |
 | P6 | GitHub branch/PR integration | planned | Commit/push mission branches and open/update PRs |
 | P7 | GitHub Actions proof | planned | Add CI and proof gates for repo/build/packet checks |
 | P8 | Durable state and memory | planned | Add Postgres migrations and durable mission/job/memory storage |
-| P9 | Render production runtime | planned | Deploy real MCP runtime on Render with health/readiness/status/MCP endpoints |
+| P9 | Full Render runtime hardening | planned | Add DB/queue readiness, auth hardening, and production Blueprint |
 | P10 | Golden path mission loop | planned | One approval -> packet -> worker -> PR -> proof -> handoff |
 | P11 | Hardening and recovery | planned | Retry, quarantine, failure memory, elevated mission handling |
 | P12 | Research mode and optional surfaces | later | Add extended research receipts and optional status widget/visual fallback |
 
 ## P0 - Bootstrap and operating spine
 
-Status: in progress
+Status: complete
 
 Goal: make the repo understandable, deployable as a bootstrap service, and ready for implementation missions.
 
 Completed:
 
 - README expanded with SE-CLI doctrine.
+- Root `AGENTS.md` added.
 - `ops/OPERATOR_MANUAL.md` added.
 - `ops/HANDOFF.md` added.
 - `ops/STATUS.md` added.
+- `ops/BUILD_PLAN.md` added.
 - `ops/UPGRADE_LIST.md` added.
 - `ops/RECEIPT.md` added.
 - `ops/DECISIONS.md` added.
@@ -80,98 +99,118 @@ Completed:
 - `.dockerignore` added.
 - Render Docker service live and browser-verified.
 
-Remaining:
+Exit condition: complete.
 
-- Add this living build plan.
-- Update indexes and state docs to reference it.
-
-Acceptance criteria:
-
-- New tab can understand the system by reading `ops/OPERATOR_MANUAL.md`, `ops/HANDOFF.md`, `ops/STATUS.md`, `ops/BUILD_PLAN.md`, and `ops/UPGRADE_LIST.md`.
-- Render bootstrap service responds on `/healthz`, `/readyz`, and `/status`.
-- Next implementation mission is clear.
-
-Exit condition:
-
-- P0 exits when `ops/BUILD_PLAN.md` is committed and referenced from the operating docs.
-
-## P1 - Repository/package scaffold
+## P1A - Render-first real MCP vertical slice
 
 Status: next
 
-Goal: create the TypeScript monorepo foundation without replacing the bootstrap service yet.
+Goal: replace the bootstrap placeholder with a real TypeScript MCP runtime on Render as fast as possible, while keeping the scope read-only and safe.
+
+This phase intentionally does not build the whole monorepo. It adds only the minimum scaffold needed for a real app.
 
 Scope:
 
-- `package.json`
-- `pnpm-workspace.yaml`
-- `tsconfig.base.json`
-- package folder skeletons
-- app folder skeletons
-- base scripts
-- minimal test runner setup
-- placeholder package exports
-- updated Dockerfile only if needed to keep Render bootstrap working
-
-Target structure:
-
-- `apps/mcp-server/`
-- `apps/worker/`
-- `apps/status-widget/`
-- `packages/se-core/`
-- `packages/se-schemas/`
-- `packages/se-policy/`
-- `packages/se-memory/`
-- `packages/se-packets/`
-- `packages/se-receipts/`
-- `packages/se-github/`
-- `packages/se-render/`
-- `packages/se-worker-protocol/`
-- `packages/se-cli/`
-- `tests/fixtures/`
+- Root `package.json`.
+- `pnpm-workspace.yaml`.
+- `tsconfig.base.json`.
+- `apps/mcp-server/` minimal TypeScript app.
+- Minimal `packages/se-core/` for shared State Card data/types.
+- Minimal `packages/se-schemas/` if needed for State Card validation.
+- Minimal test setup.
+- Dockerfile updated to build/start the real MCP app.
+- `/healthz` endpoint retained.
+- `/readyz` endpoint retained.
+- `/status` endpoint returns real app State Card.
+- `/mcp` endpoint becomes real MCP endpoint, not placeholder.
+- First read-only MCP tool: `se.get_state_card`.
+- No write tools.
+- No worker.
+- No DB requirement.
+- No queue requirement.
 
 Acceptance criteria:
 
 - `pnpm install` works.
-- `pnpm typecheck` exists and passes.
-- `pnpm test` exists and passes.
-- `pnpm build` exists and passes or has a documented placeholder implementation.
-- Render bootstrap still deploys.
+- `pnpm build` works.
+- `pnpm typecheck` works.
+- `pnpm test` works, even if the initial test set is small.
+- Docker image builds.
+- Render deploys successfully.
+- `/healthz` returns healthy.
+- `/readyz` returns readiness without requiring DB/queue.
+- `/status` returns the real app State Card.
+- `/mcp` supports initialize/list-tools for the read-only MCP runtime.
+- `se.get_state_card` is available as a read-only tool.
+- Bootstrap fallback is not deleted until the real runtime is verified.
 - Operational docs updated.
 
 Stop conditions:
 
-- Package manager conflict.
-- Docker bootstrap breaks.
-- Any secret/token accidentally enters repo files.
+- Render deploy breaks without rollback path.
+- `/healthz`, `/readyz`, or `/status` regress.
+- `/mcp` becomes a write-capable surface before read-only tools are verified.
+- The app requires DB/queue before those services are wired.
+- Any credential value enters repo files.
+
+## P1B - Focused repo/package scaffold
+
+Status: planned
+
+Goal: expand the monorepo only after the real MCP app is live.
+
+Scope:
+
+- `apps/worker/` skeleton.
+- `apps/status-widget/` placeholder only if needed.
+- `packages/se-policy/`.
+- `packages/se-memory/`.
+- `packages/se-packets/`.
+- `packages/se-receipts/`.
+- `packages/se-github/`.
+- `packages/se-render/`.
+- `packages/se-worker-protocol/`.
+- `packages/se-cli/`.
+- `tests/fixtures/`.
+
+Acceptance criteria:
+
+- Existing Render MCP app still deploys.
+- Package boundaries are useful, not decorative.
+- Base scripts still pass.
+
+Stop conditions:
+
+- Package expansion delays the working Render app.
+- App code is split across packages before it is useful.
 
 ## P2 - Schemas and policy core
 
 Status: planned
 
-Goal: define contracts before building execution.
+Goal: define execution contracts before write/execution tools exist.
 
 Scope:
 
-- State Card schema
-- Mission schema
-- Job schema
-- Work packet schema
-- Receipt schema
-- Handoff schema
-- Upgrade item schema
-- Worker heartbeat schema
-- Normal/elevated/hard-stop approval class schema
-- Path allowlist policy
-- Command allowlist policy
-- Risk scoring helper
+- State Card schema.
+- Mission schema.
+- Job schema.
+- Work packet schema.
+- Receipt schema.
+- Handoff schema.
+- Upgrade item schema.
+- Worker heartbeat schema.
+- Normal/elevated/hard-stop approval class schema.
+- Path allowlist policy.
+- Command allowlist policy.
+- Risk scoring helper.
 
 Acceptance criteria:
 
 - Safe mission fixture passes.
 - Unsafe path fixture fails.
 - Unsafe command fixture fails.
-- Secret-like fixture fails.
+- Credential-like fixture fails.
 - Workflow-edit fixture requires elevated approval.
 - Production deploy fixture requires elevated approval.
 
@@ -181,41 +220,33 @@ Stop conditions:
 - Policy allows protected branch mutation in normal missions.
 - Schema contracts are vague or undocumented.
 
-## P3 - Read-only MCP runtime
+## P3 - MCP read tools complete
 
 Status: planned
 
-Goal: replace the bootstrap HTTP server with a real MCP-capable runtime while keeping safe read-only behavior first.
+Goal: make ChatGPT able to inspect repo operating state through MCP before any write tools exist.
 
 Scope:
 
-- Real `apps/mcp-server` app.
-- `/healthz` endpoint.
-- `/readyz` endpoint.
-- `/status` endpoint.
-- `/mcp` endpoint.
-- Read-only MCP tools:
-  - `se.get_state_card`
-  - `se.read_handoff`
-  - `se.read_upgrade_list`
-  - `se.read_latest_receipt`
-  - `se.inspect_mission`
-- Local mock state if DB is not wired yet.
-- Render deploy keeps working.
+- `se.get_state_card`.
+- `se.read_handoff`.
+- `se.read_build_plan`.
+- `se.read_upgrade_list`.
+- `se.read_latest_receipt`.
+- `se.inspect_mission`, initially backed by docs/static state.
+- Tool metadata and read-only annotations.
 
 Acceptance criteria:
 
-- `/healthz` returns healthy.
-- `/readyz` returns dependency readiness.
-- `/status` returns State Card.
-- `/mcp` supports initialize/list-tools for read-only tools.
-- No write tools are exposed yet.
+- ChatGPT app can list tools.
+- Read tools return structured data.
+- No write tools are exposed.
+- Tool names are clear and not overly broad.
 
 Stop conditions:
 
-- Auth becomes overcomplicated before read-only tools work.
-- Write tools are added before read-only MCP is verified.
-- Render deploy breaks without a rollback path.
+- Auth complexity blocks read-only testing.
+- Read tools mutate state.
 
 ## P4 - Packet creation without execution
 
@@ -239,8 +270,8 @@ Acceptance criteria:
 
 - Valid fixture packet is created and hashed.
 - Invalid path/command packet is rejected.
-- Duplicate idempotency key returns existing packet/missions in the future DB-backed version or deterministic local behavior in mock mode.
-- Packet does not contain secrets.
+- Duplicate idempotency key behaves deterministically.
+- Packet does not contain credential values.
 
 Stop conditions:
 
@@ -271,13 +302,13 @@ Acceptance criteria:
 - Worker rejects unsafe path fixture.
 - Worker rejects unsafe command fixture.
 - Worker reports result in schema-valid JSON.
-- Worker does not require local model.
+- Worker does not require a local model.
 
 Stop conditions:
 
 - Worker starts making planning decisions.
 - Worker runs command not present in allowed command list.
-- Worker accesses secrets unexpectedly.
+- Worker requests credential access unexpectedly.
 
 ## P6 - GitHub branch/PR integration
 
@@ -335,7 +366,6 @@ Acceptance criteria:
 Stop conditions:
 
 - Workflow permissions are broader than needed.
-- Secrets are exposed to untrusted contexts.
 - CI performs autonomous repo mutation without explicit approval.
 
 ## P8 - Durable state and memory
@@ -365,39 +395,39 @@ Acceptance criteria:
 - Migrations apply cleanly.
 - State Card can be reconstructed from DB plus repo docs.
 - Mission/job/event rows round-trip.
-- No secrets are stored in plaintext unless explicitly intended and encrypted.
+- Sensitive values are not written into receipts/events.
 
 Stop conditions:
 
 - DB becomes required for local dev without fallback.
-- Secrets are written into receipts/events.
 - Render disk is used as mission memory.
 
-## P9 - Render production runtime
+## P9 - Full Render runtime hardening
 
 Status: planned
 
-Goal: convert Render from bootstrap service to real MCP runtime.
+Goal: harden the Render MCP runtime after read-only MCP is already live.
 
 Scope:
 
-- Root `Dockerfile` uses real app build/start.
-- `/healthz`, `/readyz`, `/status`, `/mcp` remain stable.
-- `docs/render-blueprint.example.yaml` becomes root `render.yaml` in an elevated mission when ready.
-- Render env vars are simplified to only what runtime uses.
+- DB readiness in `/readyz` when DB is configured.
+- Queue readiness in `/readyz` when queue is configured.
+- Auth hardening.
+- Render status adapter.
+- Production `render.yaml` copied from example in an elevated mission when stable.
 - Render service IDs recorded.
 
 Acceptance criteria:
 
 - Render deploys real MCP runtime.
-- `/readyz` checks DB and queue when configured.
-- `/status` returns real State Card.
+- `/readyz` checks configured dependencies.
+- `/status` returns current State Card.
 - `/mcp` read-only tools work from ChatGPT app setup.
 
 Stop conditions:
 
 - Bootstrap fallback removed before real runtime is verified.
-- Render secrets are logged.
+- Runtime logs sensitive values.
 - Deployment requires manual dashboard steps not documented in `docs/RENDER_SETUP.md`.
 
 ## P10 - Golden path mission loop
@@ -415,7 +445,7 @@ Scope:
 - Worker execution.
 - Branch/PR.
 - CI proof.
-- Receipt/handoff/status/upgrade update.
+- Receipt/handoff/status/upgrade/build-plan update.
 
 Acceptance criteria:
 
@@ -444,7 +474,7 @@ Scope:
 - Lease expiry.
 - Job quarantine.
 - Worker fingerprint.
-- Secret scan.
+- Detection of accidental sensitive content.
 - Failure memory.
 - CI failure repair flow.
 - Elevated mission protocol.
@@ -457,7 +487,7 @@ Acceptance criteria:
 - CI failure creates clear next action.
 - Render reset reconstructs State Card.
 - Unsafe packet never executes.
-- Secret-like content is blocked or escalated.
+- Sensitive-looking content is blocked or escalated.
 
 Stop conditions:
 
@@ -491,22 +521,23 @@ Stop conditions:
 - Dashboard becomes required.
 - Remote visual fallback becomes the main execution path.
 
-## Immediate next mission: U001 / P1
+## Immediate next mission: P1A
 
-Title: Create repository/package scaffold.
+Title: Render-first real MCP vertical slice.
 
 Class: normal mission.
 
 Mission envelope:
 
-- May create/edit root package config files.
-- May create app/package skeleton directories.
-- May add tests/fixtures.
-- May update Dockerfile only if bootstrap remains deployable.
-- May update ops/docs files.
-- May not add secrets.
-- May not add GitHub workflow yet unless separately elevated.
-- May not deploy production behavior.
+- May create/edit minimal TypeScript package/app files.
+- May update the root Dockerfile to start the real app.
+- May add small tests and fixtures.
+- May update operating docs.
+- May not add write-capable MCP tools.
+- May not add worker execution.
+- May not add production `render.yaml`.
+- May not require DB/queue.
+- May not require new credentials beyond existing Render environment variables.
 
 Expected files:
 
@@ -514,19 +545,24 @@ Expected files:
 - `pnpm-workspace.yaml`
 - `tsconfig.base.json`
 - `apps/mcp-server/package.json`
-- `apps/worker/package.json`
-- `packages/*/package.json`
-- initial source/index files
-- initial tests/fixtures
+- `apps/mcp-server/tsconfig.json`
+- `apps/mcp-server/src/index.ts`
+- `apps/mcp-server/src/state-card.ts`
+- minimal shared package files if needed
+- tests for State Card and basic endpoint behavior
+- updated `Dockerfile`
 - updated ops docs
 
 Acceptance tests:
 
 - `pnpm install`
+- `pnpm build`
 - `pnpm typecheck`
 - `pnpm test`
-- `pnpm build`
-- Docker bootstrap still builds/deploys or the new Docker startup is verified.
+- Docker build succeeds.
+- Render deploy succeeds.
+- `/healthz`, `/readyz`, `/status`, and `/mcp` respond.
+- `se.get_state_card` is available as a read-only MCP tool.
 
 ## Build-plan update rules
 

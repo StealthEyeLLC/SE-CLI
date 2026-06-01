@@ -2,7 +2,7 @@
 
 ## Current mission
 
-M-2026-06-01-002: Replan next build as Render-first MCP vertical slice.
+M-2026-06-01-003: Verify Render-hosted read-only MCP tools.
 
 ## Current branch
 
@@ -12,56 +12,53 @@ M-2026-06-01-002: Replan next build as Render-first MCP vertical slice.
 
 None.
 
-## Current commit
-
-Docs/planning commits are being committed directly during initial repository setup. Future implementation missions should use mission branches and PRs once the work-packet/worker loop exists.
-
 ## Current State Card
 
-- Mission: M-2026-06-01-002, Replan next build as Render-first MCP vertical slice
-- Mode: plan-updated-render-first
+- Mission: M-2026-06-01-003, Verify Render-hosted read-only MCP tools
+- Mode: read-only-mcp-verified-next-policy-core
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
-- Render: live bootstrap service at `https://se-cli-mcp.onrender.com`
-- Last action: updated build plan and upgrade list to make P1A the next mission
-- Next action: start P1A normal mission to build the real read-only MCP runtime on Render
+- Render: live service at `https://se-cli-mcp.onrender.com` running `real-mcp-read-only`
+- Last action: verified `se.get_state_card`, `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt`
+- Next action: start P2/U003 schemas and normal/elevated mission policy tests
 - Blocked: no
-- Needs approval: normal mission approval for implementation work
+- Needs approval: normal mission approval for P2 implementation work
 - Risk: low
 - Updated: 2026-06-01
 
 ## Last completed action
 
-The build plan was corrected from broad scaffold-first to Render-first. The next build is now P1A: a minimal TypeScript MCP app on Render with stable `/healthz`, `/readyz`, `/status`, `/mcp`, and read-only `se.get_state_card`.
+The Render-hosted SE-CLI MCP server is connected to ChatGPT and verified. The read-only MCP tool surface can read the State Card and operating docs from the Render runtime.
+
+## Connector exposure note
+
+If ChatGPT stops showing SE-CLI tools during a redeploy or reset check, the observed workaround is: user turns GitHub off, exposes SE-CLI only, and asks the assistant to retry. Do not treat the server as broken until this connector visibility issue has been ruled out.
 
 ## Next safest action
 
-Start P1A normal mission:
+Start P2/U003 as a normal mission:
 
-1. Add minimal TypeScript scaffold.
-2. Add `apps/mcp-server` real app.
-3. Keep `/healthz`, `/readyz`, and `/status` stable.
-4. Replace placeholder `/mcp` with real read-only MCP runtime.
-5. Add `se.get_state_card` read-only tool.
-6. Update Dockerfile to start the real app.
-7. Keep DB/queue optional for now.
-8. Deploy to Render and verify endpoints.
+1. Add schema package/foundation if needed.
+2. Define the core data contracts for State Card, Mission, Job, Work Packet, Receipt, Handoff, Upgrade Item, Worker Heartbeat, and approval classes.
+3. Add policy fixtures for allowed and disallowed mission shapes.
+4. Add tests proving allowed fixtures pass and disallowed/elevated fixtures are rejected or escalated.
+5. Keep all MCP tools read-only; do not add write tools yet.
 
 ## Open risks
 
-- Real MCP runtime does not exist yet.
-- `/mcp` is currently a placeholder endpoint and returns not implemented.
 - Worker is not implemented yet.
 - CI is not configured yet.
-- ChatGPT custom app configuration is not complete yet.
+- DB/queue are not configured yet.
+- GitHub and Render adapters are not implemented yet.
+- Write-capable MCP tools do not exist yet.
 
 ## Do not do
 
-- Do not expose write-capable MCP tools in P1A.
-- Do not require DB/queue in P1A.
+- Do not expose write-capable MCP tools before schemas and policy gates exist.
+- Do not add generic command execution.
+- Do not require DB/queue for P2.
 - Do not add local model dependencies.
 - Do not create dashboard-first workflow.
-- Do not add broad write permissions before the packet/worker policy layer exists.
 - Do not treat ChatGPT memory as authoritative state.

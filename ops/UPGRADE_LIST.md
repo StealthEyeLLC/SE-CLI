@@ -3,6 +3,7 @@
 This file is the ranked build backlog. The top safe item should normally become the next mission.
 
 Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
+Canonical no-API-charge addendum: `docs/NO_API_CHARGE_ARCHITECTURE.md`.
 
 ## Scoring
 
@@ -33,19 +34,28 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Result: `se.get_state_card`, `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt` return structured data from the Render runtime.
 - Last touched: 2026-06-01
 
-### U003 - Add core envelopes, schemas, and policy verdict foundation
+### U003 - Add temporary constrained bootstrap writer
 
-- Priority score: 76
-- Status: next
-- Why now: The integrated spec requires app/server envelopes, build-list structure, mission/job/result contracts, authority classes, failure classes, and policy verdicts before write tools, packets, or workers exist.
-- Unblocks: thin-app tools, build-list engine, async mission controller, packet builder, worker validation, durable storage, result packets, boundary requests.
-- Risk reduced: Prevents vague contracts and blocks unsafe mission shapes before anything can execute.
-- Effort: medium
-- Blast radius: low
-- Acceptance tests: schema fixtures validate deterministically; normal allowed fixture passes; elevated fixture requires boundary classification; invalid scope/path/command fixture fails; result packet fixture supports tiny/standard/artifact-pointer views.
+- Priority score: 44
+- Status: done
+- Result: `se.apply_single_file_update` can create/update one allowed UTF-8 repo file through GitHub.
+- Boundaries: no shell, no delete, no workflow edits, no `render.yaml`, no env/secret/token/key files, no broad execution.
+- Acceptance proof: created `ops/BOOTSTRAP_WRITE_TEST.md` through SE-CLI MCP.
 - Last touched: 2026-06-01
 
-### U004 - Add build-list engine skeleton
+### U004 - Add core envelopes, schemas, policy verdicts, and deterministic continuation contracts
+
+- Priority score: 82
+- Status: next
+- Why now: The integrated spec and no-API-charge addendum require app/server envelopes, build-list structure, mission/job/result contracts, authority classes, failure classes, policy verdicts, and deterministic continuation contracts before packets or workers exist.
+- Unblocks: thin-app tools, build-list engine, async mission controller, deterministic continuation controller, packet builder, worker validation, durable storage, result packets, boundary requests.
+- Risk reduced: Prevents vague contracts, hidden model loops, and unsafe mission shapes before anything can execute.
+- Effort: medium
+- Blast radius: low
+- Acceptance tests: schema fixtures validate deterministically; normal allowed fixture passes; elevated fixture requires boundary classification; invalid scope/path/command fixture fails; deterministic continuation fixture advances only mechanical states; novel repair fixture returns `needs_chatgpt`; boundary fixture returns `needs_user`; result packet fixture supports tiny/standard/artifact-pointer views.
+- Last touched: 2026-06-01
+
+### U005 - Add build-list engine skeleton
 
 - Priority score: 68
 - Status: queued
@@ -54,10 +64,10 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Risk reduced: Prevents huge vague mega-missions by converting project work into bounded items.
 - Effort: medium
 - Blast radius: low
-- Acceptance tests: load build-list fixture; pick next unblocked item; update item status; report progress.
+- Acceptance tests: load build-list fixture; pick next unblocked item by deterministic rules; update item status; report progress; stop when the next step needs ChatGPT or user authority.
 - Last touched: 2026-06-01
 
-### U005 - Add mission and async job controller skeleton
+### U006 - Add mission and async job controller skeleton
 
 - Priority score: 66
 - Status: queued
@@ -69,7 +79,19 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: start mission returns mission/job IDs; repeated idempotency key returns existing state; mission/job status reconstructs cleanly.
 - Last touched: 2026-06-01
 
-### U006 - Add packet creation and validation without execution
+### U007 - Add deterministic continuation controller skeleton
+
+- Priority score: 64
+- Status: queued
+- Why now: This replaces the removed API-side model controller lane and enables no-charge background progress.
+- Unblocks: no-cost overnight mode, continue/build-list loop, CI watch, worker lease recovery.
+- Risk reduced: Makes autonomy honest and prevents hidden token-metered reasoning.
+- Effort: medium
+- Blast radius: low
+- Acceptance tests: mechanical pass advances; proof-pending waits; known flake retries by rule; expired lease requeues/quarantines; novel repair returns `needs_chatgpt`; boundary returns `needs_user`; uncertainty pauses.
+- Last touched: 2026-06-01
+
+### U008 - Add packet creation and validation without execution
 
 - Priority score: 62
 - Status: queued
@@ -81,7 +103,7 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: valid fixture packet is created and hashed; invalid packet is rejected; duplicate idempotency behaves deterministically; packet cannot contain generic unbounded commands.
 - Last touched: 2026-06-01
 
-### U007 - Add local worker fixture execution
+### U009 - Add local worker fixture execution
 
 - Priority score: 58
 - Status: queued
@@ -93,7 +115,7 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: safe fixture executes; invalid command/path fixture stops; worker reports schema-valid result; no local AI model required.
 - Last touched: 2026-06-01
 
-### U008 - Add Git branch, commit, push, and PR automation
+### U010 - Add Git branch, commit, push, and PR automation
 
 - Priority score: 54
 - Status: queued
@@ -105,31 +127,31 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: one safe packet creates/updates one mission branch and PR; PR body contains mission, scope, changed files, proof, limitations, and next action.
 - Last touched: 2026-06-01
 
-### U009 - Add GitHub Actions proof and failure compression
+### U011 - Add GitHub Actions proof and failure compression
 
 - Priority score: 52
 - Status: queued
 - Why now: Work is not complete until proof is read and compressed into a usable result packet.
-- Unblocks: repair loop and mission closure.
-- Risk reduced: Prevents unverified changes and raw-log overload.
+- Unblocks: ChatGPT-mediated repair loop and mission closure.
+- Risk reduced: Prevents unverified changes, raw-log overload, and hidden model interpretation.
 - Effort: medium
 - Blast radius: normal
-- Acceptance tests: CI pass marks mission passed; CI failure returns compressed failure packet with classification and recommended next action.
+- Acceptance tests: CI pass marks mission passed; CI failure returns compressed failure packet with classification and recommended next action; no API-side model call is made.
 - Last touched: 2026-06-01
 
-### U010 - Add continue/fix/build-list loop
+### U012 - Add continue/fix/build-list loop
 
 - Priority score: 50
 - Status: queued
-- Why now: Natural commands like continue and fix it must map to server state transitions.
+- Why now: Natural commands like continue and fix it must map to server state transitions and ChatGPT-mediated reasoning.
 - Unblocks: low-friction user loop.
 - Risk reduced: Prevents ChatGPT from improvising next actions without server state.
 - Effort: medium
 - Blast radius: normal
-- Acceptance tests: continue returns running status, starts next item, starts allowed repair, or returns boundary request; fix it starts scoped repair when allowed.
+- Acceptance tests: continue returns running status, starts next item, starts allowed deterministic repair, or returns boundary/ChatGPT-needed request; fix it starts scoped repair when ChatGPT supplies instruction.
 - Last touched: 2026-06-01
 
-### U011 - Add receipt, handoff, status, build plan, and upgrade auto-update
+### U013 - Add receipt, handoff, status, build plan, and upgrade auto-update
 
 - Priority score: 46
 - Status: queued
@@ -141,7 +163,7 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: mission closure updates operating docs consistently.
 - Last touched: 2026-06-01
 
-### U012 - Add Postgres durable mission/memory state
+### U014 - Add Postgres durable mission/memory state
 
 - Priority score: 45
 - Status: queued
@@ -153,7 +175,7 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: migrations run; build-list/mission/job/packet/result/boundary rows round-trip.
 - Last touched: 2026-06-01
 
-### U013 - Add Render runtime hardening and connector diagnostics
+### U015 - Add Render runtime hardening and connector diagnostics
 
 - Priority score: 42
 - Status: queued
@@ -165,7 +187,7 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: `/healthz`, `/readyz`, `/status`, MCP endpoint, and `se.diagnose_connector` remain stable on Render.
 - Last touched: 2026-06-01
 
-### U014 - Add elevated boundary protocol
+### U016 - Add elevated boundary protocol
 
 - Priority score: 39
 - Status: queued
@@ -177,19 +199,19 @@ Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 - Acceptance tests: boundary request fixture includes type, reason, action, impact, alternatives, recommendation, approval phrase, and can-continue-other-items flag.
 - Last touched: 2026-06-01
 
-### U015 - Add heartbeat/API continuation lane
+### U017 - Add optional ChatGPT Task heartbeat lane
 
-- Priority score: 35
+- Priority score: 34
 - Status: later
-- Why now: Background continuation should use real polling/API lanes, not assumed same-tab callbacks.
-- Unblocks: pseudo-persistent approved build-list execution.
-- Risk reduced: Makes autonomy honest and recoverable.
-- Effort: high
-- Blast radius: normal
-- Acceptance tests: scheduled/API check can read state and continue approved work or notify on blocker.
+- Why now: Heartbeat checks may be useful if available inside the user's current ChatGPT plan and not API-billed.
+- Unblocks: no-cost status reminders and pseudo-callback behavior.
+- Risk reduced: Keeps continuation honest without hidden API charges.
+- Effort: medium
+- Blast radius: low
+- Acceptance tests: scheduled check can read state and report/continue deterministic approved work; if Tasks are unavailable, manual resume remains the default.
 - Last touched: 2026-06-01
 
-### U016 - Add research mode
+### U018 - Add research mode
 
 - Priority score: 30
 - Status: later

@@ -45,7 +45,9 @@ Normal work should require one mission-level approval, not per-file, per-command
 - `docs/ARCHITECTURE.md` - concise system architecture.
 - `docs/RENDER_SETUP.md` - Render service/env setup checklist.
 - `docs/render-blueprint.example.yaml` - example Render Blueprint to copy into root later as `render.yaml` once app code exists.
+- `docs/CHATGPT_APP_SETUP.md` - ChatGPT custom app/MCP connection notes.
 - `docs/SECURITY.md` - boundaries, approvals, and forbidden actions.
+- `docs/LICENSING.md` - non-permissive licensing posture and approval rule.
 
 ## Build law
 

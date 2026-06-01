@@ -9,7 +9,7 @@ const startedAt = new Date().toISOString();
 const repoRoot = process.env.SECLI_REPO_ROOT || process.cwd();
 const defaultRepository = process.env.SECLI_GITHUB_REPOSITORY || "StealthEyeLLC/SE-CLI";
 const defaultBranch = process.env.SECLI_GITHUB_BRANCH || process.env.SECLI_DEFAULT_BRANCH || "main";
-const runtimeMode = "real-mcp-bootstrap-batch-write";
+const runtimeMode = "real-mcp-github-backed-docs";
 
 interface JsonRpcRequest {
   jsonrpc?: string;
@@ -81,6 +81,9 @@ interface ParsedBatchWriteArgs {
 interface GitHubContentResponse {
   sha?: string;
   type?: string;
+  content?: string;
+  encoding?: string;
+  html_url?: string;
 }
 
 interface GitHubUpdateResponse {
@@ -271,24 +274,12 @@ function toolResultText(text: string, structuredContent?: unknown) {
   };
 }
 
-async function readRepoFile(relativePath: string): Promise<{ path: string; content: string }> {
-  const resolvedPath = path.resolve(repoRoot, relativePath);
-  const resolvedRoot = path.resolve(repoRoot);
-
-  if (!resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
-    throw new Error(`Refusing to read outside repo root: ${relativePath}`);
-  }
-
-  const content = await readFile(resolvedPath, "utf8");
-  return { path: relativePath, content };
-}
-
-function getGitHubToken(): string {
+function getGitHubToken(optional = false): string {
   const token = process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  if (!token) {
+  if (!token && !optional) {
     throw new Error("GitHub token is not configured. Set SECLI_GITHUB_TOKEN or GITHUB_TOKEN in Render.");
   }
-  return token;
+  return token || "";
 }
 
 function normalizeRepoPath(rawPath: string): string {
@@ -457,7 +448,7 @@ async function githubPut<T>(url: string, body: Record<string, unknown>, token: s
   return (await response.json()) as T;
 }
 
-async function fetchExistingGitHubFile(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
+async function fetchGitHubContent(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
   const url = `${githubContentUrl(repository, repoPath)}?ref=${encodeURIComponent(branch)}`;
   const response = await fetch(url, {
     headers: githubHeaders(token, false),
@@ -476,6 +467,33 @@ async function fetchExistingGitHubFile(repository: string, repoPath: string, bra
     throw new Error(`GitHub path is not a file: ${repoPath}`);
   }
   return body;
+}
+
+async function fetchExistingGitHubFile(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
+  return fetchGitHubContent(repository, repoPath, branch, token);
+}
+
+async function readRepoFile(relativePath: string): Promise<{ path: string; content: string; source: string }> {
+  const repoPath = normalizeRepoPath(relativePath);
+  const token = getGitHubToken(true);
+  if (token) {
+    const body = await fetchGitHubContent(defaultRepository, repoPath, defaultBranch, token);
+    if (body?.content && body.encoding === "base64") {
+      const decoded = Buffer.from(body.content.replace(/\s/g, ""), "base64").toString("utf8");
+      return { path: repoPath, content: decoded, source: "github" };
+    }
+    if (body?.content && !body.encoding) {
+      return { path: repoPath, content: body.content, source: "github" };
+    }
+  }
+
+  const resolvedPath = path.resolve(repoRoot, repoPath);
+  const resolvedRoot = path.resolve(repoRoot);
+  if (!resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error(`Refusing to read outside repo root: ${repoPath}`);
+  }
+  const content = await readFile(resolvedPath, "utf8");
+  return { path: repoPath, content, source: "runtime" };
 }
 
 function assertBootstrapWriteEnabled(): void {
@@ -561,10 +579,52 @@ async function applyFileBatch(args: unknown) {
   return toolResultText(JSON.stringify(structured, null, 2), structured);
 }
 
+function firstLineAfter(content: string, marker: string): string | null {
+  const lines = content.split(/\r?\n/);
+  const index = lines.findIndex((line) => line.trim() === marker.trim());
+  if (index < 0) {
+    return null;
+  }
+  for (const line of lines.slice(index + 1)) {
+    const trimmed = line.trim();
+    if (trimmed) {
+      return trimmed.replace(/^[-*]\s*/, "");
+    }
+  }
+  return null;
+}
+
+function stateCardFromStatusMarkdown(content: string) {
+  const base = createStateCard();
+  return {
+    ...base,
+    service: "se-cli-mcp",
+    mode: firstLineAfter(content, "- Mode:")?.replace(/^Mode:\s*/, "") ?? base.mode,
+    mission: firstLineAfter(content, "- Mission:")?.replace(/^Mission:\s*/, "") ?? base.mission,
+    branch: firstLineAfter(content, "- Branch:")?.replace(/^Branch:\s*/, "") ?? base.branch,
+    pr: firstLineAfter(content, "- PR:")?.replace(/^PR:\s*/, "") ?? base.pr,
+    ci: firstLineAfter(content, "- CI:")?.replace(/^CI:\s*/, "") ?? base.ci,
+    worker: firstLineAfter(content, "- Worker:")?.replace(/^Worker:\s*/, "") ?? base.worker,
+    render: firstLineAfter(content, "- Render:")?.replace(/^Render:\s*/, "") ?? base.render,
+    last_action: firstLineAfter(content, "- Last action:")?.replace(/^Last action:\s*/, "") ?? base.last_action,
+    next_action: firstLineAfter(content, "- Next action:")?.replace(/^Next action:\s*/, "") ?? base.next_action,
+    blocked: (firstLineAfter(content, "- Blocked:")?.replace(/^Blocked:\s*/, "") ?? String(base.blocked)) === "yes",
+    needs_approval: firstLineAfter(content, "- Needs approval:")?.replace(/^Needs approval:\s*/, "") ?? base.needs_approval,
+    risk: firstLineAfter(content, "- Risk:")?.replace(/^Risk:\s*/, "") ?? base.risk,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 async function callTool(name: string, args?: unknown) {
   if (name === "se.get_state_card") {
-    const stateCard = createStateCard();
-    return toolResultText(JSON.stringify(stateCard, null, 2), stateCard);
+    try {
+      const status = await readRepoFile("ops/STATUS.md");
+      const stateCard = stateCardFromStatusMarkdown(status.content);
+      return toolResultText(JSON.stringify(stateCard, null, 2), stateCard);
+    } catch {
+      const stateCard = createStateCard();
+      return toolResultText(JSON.stringify(stateCard, null, 2), stateCard);
+    }
   }
 
   if (name === bootstrapWriteTool.name) {
@@ -584,6 +644,7 @@ async function callTool(name: string, args?: unknown) {
   return toolResultText(document.content, {
     path: document.path,
     content: document.content,
+    source: document.source,
   });
 }
 
@@ -644,6 +705,7 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       service: "se-cli-mcp",
       runtime: runtimeMode,
+      github_read: process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "configured" : "runtime files only",
       github_write: process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "configured" : "not configured",
       database: process.env.DATABASE_URL ? "configured" : "not configured",
       queue: process.env.QUEUE_URL || process.env.REDIS_URL ? "configured" : "not configured",
@@ -652,7 +714,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && routePath === "/status") {
-    sendJson(res, 200, createStateCard());
+    try {
+      const status = await readRepoFile("ops/STATUS.md");
+      sendJson(res, 200, stateCardFromStatusMarkdown(status.content));
+    } catch {
+      sendJson(res, 200, createStateCard());
+    }
     return;
   }
 

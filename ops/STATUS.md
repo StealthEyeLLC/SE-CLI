@@ -2,29 +2,28 @@
 
 ## State Card
 
-- Mission: M-2026-06-01-002, Replan next build as Render-first MCP vertical slice
-- Mode: plan-updated-render-first
+- Mission: P1A/U001, Render-first real MCP vertical slice
+- Mode: p1a-implementation-committed-awaiting-render-verification
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
-- Render: live bootstrap web service at `https://se-cli-mcp.onrender.com` with service id `srv-d8ehlvvavr4c738olbm0`
-- Last action: updated build plan and upgrade list to make the next mission P1A Render-first real MCP vertical slice
-- Next action: start P1A normal mission to build the real read-only MCP runtime on Render
-- Blocked: no
-- Needs approval: normal mission approval for P1A implementation work
+- Render: existing service `https://se-cli-mcp.onrender.com` should auto-deploy the new Docker image from `main`
+- Last action: committed minimal TypeScript workspace, real MCP server app, read-only `se.get_state_card`, tests, and Dockerfile update
+- Next action: wait for Render deploy, then verify `/healthz`, `/readyz`, `/status`, and `/mcp` JSON-RPC initialize/tools/list/tools/call
+- Blocked: not blocked; pending Render deployment/verification
+- Needs approval: none for read-only verification
 - Risk: low
 - Updated: 2026-06-01
 
 ## Current truth
 
-SE-CLI currently has the operating documentation spine, root `AGENTS.md`, a living build plan, and a bootstrap `Dockerfile` deployed on Render before the real MCP runtime exists. Render shows the `se-cli-mcp` Docker web service is live at `https://se-cli-mcp.onrender.com` with service id `srv-d8ehlvvavr4c738olbm0`. The user verified `/healthz`, `/readyz`, and `/status` from a browser. `/readyz` correctly reports database and queue as `not configured` because Postgres and queue are not wired yet. The placeholder `/mcp` endpoint intentionally returns not implemented until the real runtime is built.
+SE-CLI now has the operating documentation spine, root `AGENTS.md`, a living build plan, and the first real TypeScript MCP runtime committed to `main`. The old inline bootstrap Docker server has been replaced in the Dockerfile by a workspace build/start path for `apps/mcp-server`.
 
-The plan has been corrected from broad scaffold-first to Render-first MCP vertical slice. The next implementation mission should add the minimal TypeScript app scaffold needed to replace the placeholder with a real read-only MCP runtime and `se.get_state_card` tool.
+The new runtime is still read-only. It should provide `/healthz`, `/readyz`, `/status`, and `/mcp`. The first MCP tool is `se.get_state_card`. It does not expose write tools, worker execution, packet execution, DB requirements, or queue requirements.
 
 ## Missing runtime pieces
 
-- real MCP server
 - local worker
 - work packet protocol implementation
 - Postgres migrations
@@ -35,4 +34,4 @@ The plan has been corrected from broad scaffold-first to Render-first MCP vertic
 
 ## Next build target
 
-P1A/U001: Build the Render-first real MCP vertical slice.
+Verify P1A on Render. After P1A is verified, the next build target is completing read-only MCP tools for handoff, build plan, upgrade list, and receipt reads.

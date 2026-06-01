@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-006: Align docs with MCP control-plane upgrades.
+M-2026-06-01-007: Make SE-CLI read tools GitHub-backed.
 
 ## Date
 
@@ -22,34 +22,32 @@ None.
 
 ## Files changed
 
-- `docs/MCP_CONTROL_PLANE_UPGRADES.md`
-- `ops/BUILD_PLAN.md`
-- `ops/UPGRADE_LIST.md`
-- `ops/HANDOFF.md`
-- `ops/STATUS.md`
+- `apps/mcp-server/src/index.ts`
 - `ops/RECEIPT.md`
 
 ## What changed
 
-The operating docs were aligned around the actual thin-app to MCP control-plane upgrades:
+The MCP server was updated so read tools prefer the latest repository content from GitHub when a GitHub token is configured. This prevents `se.read_handoff`, `se.read_build_plan`, `se.read_upgrade_list`, and `se.read_latest_receipt` from returning stale Render-baked docs after SE-CLI writes update GitHub.
 
-- ChatGPT remains the conversation brain.
-- The ChatGPT app is a thin bridge.
-- The SE-CLI server owns state, missions, build lists, packets, policy, continuation, integrations, and result packets.
-- Workers are bounded execution appliances.
-- GitHub PRs and CI are the review/proof surface.
-- Result packets are the ChatGPT review surface.
-- Routine single-file and batch update lanes are recorded as bootstrap bridges, not the final mission execution model.
-- P2A is now clearly the next contract-building mission.
+`se.get_state_card` and `/status` now try to derive their response from the current `ops/STATUS.md` content before falling back to the package default State Card.
+
+Runtime mode was updated to:
+
+- `real-mcp-github-backed-docs`
 
 ## Verification performed
 
-`se.apply_file_batch` was already verified by creating:
+Change was applied through the currently live `se.apply_file_batch` routine lane.
 
-- `ops/BATCH_WRITE_TEST_A.md`
-- `ops/BATCH_WRITE_TEST_B.md`
+Full runtime verification requires Render to redeploy and then these tools should be checked:
 
-This receipt update was also performed through the SE-CLI batch update lane.
+- `se.get_state_card`
+- `se.read_handoff`
+- `se.read_build_plan`
+- `se.read_upgrade_list`
+- `se.read_latest_receipt`
+
+Expected result: read tools report `source: github` in structured content and return the latest GitHub docs.
 
 ## CI result
 
@@ -57,12 +55,12 @@ Not configured yet.
 
 ## Render result
 
-No Render runtime code change was made by this documentation alignment. Existing Render MCP runtime remains the active bridge.
+Pending Render redeploy.
 
 ## Risk notes
 
-Low risk. Documentation and planning alignment only. No worker execution, DB/queue requirement, production Blueprint, workflow, credential, license change, or generic command tool was added.
+Low to moderate. Runtime code changed, but behavior is narrow: docs/status reads now prefer GitHub and fall back to runtime files when GitHub read is unavailable.
 
 ## Next action
 
-Start P2A/U005: add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, policy verdict fixtures, and continuation contracts before packet/worker execution or final mission-level tools are added.
+After Render redeploy, verify the read tools return current docs. Then start P2A/U005: add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, policy verdict fixtures, and continuation contracts before packet/worker execution or final mission-level tools are added.

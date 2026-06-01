@@ -2,17 +2,17 @@
 
 ## State Card
 
-- Mission: M-2026-06-01-008, Add P2A schema and policy contract layer
-- Mode: p2a-implemented-pending-verification
+- Mission: M-2026-06-01-009, Prepare P2A verification handoff
+- Mode: p2a-awaiting-execution-verification
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
 - Render: live service at `https://se-cli-mcp.onrender.com` running MCP runtime with routine update lanes
-- Last action: added P2A schema and policy packages with contract types, policy decisions, continuation decisions, and node test fixtures
-- Next action: verify build/typecheck/test once execution is available, then repair any TypeScript/runtime issues before moving to P2B
-- Blocked: verification pending
-- Needs approval: none for verification; normal mission approval for repairs if needed
+- Last action: confirmed P2A implementation state and prepared verification handoff for build/typecheck/test
+- Next action: run `pnpm install`, `pnpm build`, `pnpm typecheck`, and `pnpm test`; repair any failures before P2B
+- Blocked: verification pending because execution/CI is not available through current SE-CLI tools
+- Needs approval: none for verification; normal mission approval for any repair commit if verification fails
 - Risk: normal
 - Updated: 2026-06-01
 
@@ -75,28 +75,18 @@ Current verified MCP tools:
 
 ## Verification status
 
-Execution is not available in this chat, and CI is not configured yet. P2A is implemented but not fully verified.
+Execution is not available through the current SE-CLI MCP tool surface, and CI is not configured yet. P2A is implemented but not verified.
 
-Expected verification commands:
+Required verification commands:
 
 - `pnpm install`
 - `pnpm build`
 - `pnpm typecheck`
 - `pnpm test`
 
-## Missing runtime pieces
+## Current blocker
 
-- P2A verification/repair if needed
-- build-list engine
-- mission/job async controller
-- packet builder
-- local worker
-- work packet execution
-- durable mission/memory state
-- GitHub Actions CI
-- production Render Blueprint in root
-- GitHub and Render adapters
-- final mission-level tools
+Do not start P2B until P2A passes verification. The immediate needed upgrade is a verification lane: either CI, a bounded worker command runner, or a user-run/local-worker proof path.
 
 ## Next build target
 

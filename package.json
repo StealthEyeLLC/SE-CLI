@@ -1,0 +1,18 @@
+{
+  "name": "se-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.0.0",
+  "description": "StealthEye ChatGPT-operated mission control plane.",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm build && pnpm -r typecheck",
+    "test": "pnpm build && node --test apps/mcp-server/dist/test/*.test.js",
+    "start": "node apps/mcp-server/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}

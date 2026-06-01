@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-005: Lock no-API-charge autonomy constraint.
+M-2026-06-01-006: Align docs with MCP control-plane upgrades.
 
 ## Date
 
@@ -10,7 +10,7 @@ M-2026-06-01-005: Lock no-API-charge autonomy constraint.
 
 ## Actor
 
-ChatGPT through SE-CLI MCP bootstrap writer.
+ChatGPT through SE-CLI MCP batch update lane.
 
 ## Branch
 
@@ -22,8 +22,7 @@ None.
 
 ## Files changed
 
-- `docs/NO_API_CHARGE_ARCHITECTURE.md`
-- `ops/DECISIONS.md`
+- `docs/MCP_CONTROL_PLANE_UPGRADES.md`
 - `ops/BUILD_PLAN.md`
 - `ops/UPGRADE_LIST.md`
 - `ops/HANDOFF.md`
@@ -32,28 +31,25 @@ None.
 
 ## What changed
 
-The no-API-charge autonomy constraint was added and aligned across the operating docs.
+The operating docs were aligned around the actual thin-app to MCP control-plane upgrades:
 
-The durable rule is now:
-
-- ChatGPT is the only reasoning model.
-- SE-CLI must not require OpenAI API usage, token-metered model calls, paid background model agents, API-side reasoning controllers, or hidden billable model loops.
-- The server may continue deterministic approved work.
-- Novel reasoning or novel repair waits for ChatGPT through the user's existing ChatGPT experience.
-- Optional ChatGPT Task heartbeat may be used only if available inside the user's plan and not API-billed.
+- ChatGPT remains the conversation brain.
+- The ChatGPT app is a thin bridge.
+- The SE-CLI server owns state, missions, build lists, packets, policy, continuation, integrations, and result packets.
+- Workers are bounded execution appliances.
+- GitHub PRs and CI are the review/proof surface.
+- Result packets are the ChatGPT review surface.
+- Routine single-file and batch update lanes are recorded as bootstrap bridges, not the final mission execution model.
+- P2A is now clearly the next contract-building mission.
 
 ## Verification performed
 
-SE-CLI MCP bootstrap writer was used successfully for the doc updates.
+`se.apply_file_batch` was already verified by creating:
 
-Previously verified runtime tools remain:
+- `ops/BATCH_WRITE_TEST_A.md`
+- `ops/BATCH_WRITE_TEST_B.md`
 
-- `se.get_state_card`
-- `se.read_handoff`
-- `se.read_build_plan`
-- `se.read_upgrade_list`
-- `se.read_latest_receipt`
-- `se.apply_single_file_update`
+This receipt update was also performed through the SE-CLI batch update lane.
 
 ## CI result
 
@@ -61,12 +57,12 @@ Not configured yet.
 
 ## Render result
 
-No Render runtime change was required for this documentation alignment. The existing Render MCP runtime remains the active bridge.
+No Render runtime code change was made by this documentation alignment. Existing Render MCP runtime remains the active bridge.
 
 ## Risk notes
 
-Low risk. Documentation and planning alignment only. No worker execution, DB/queue requirement, production Blueprint, workflow, credential, license change, or broad write tool was added.
+Low risk. Documentation and planning alignment only. No worker execution, DB/queue requirement, production Blueprint, workflow, credential, license change, or generic command tool was added.
 
 ## Next action
 
-Start P2A/U004: add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, policy verdict fixtures, and deterministic continuation contracts before packet/worker execution or broad write tools are added.
+Start P2A/U005: add app/server envelopes, build-list/mission/job/result schemas, authority classes, failure classes, policy verdict fixtures, and continuation contracts before packet/worker execution or final mission-level tools are added.

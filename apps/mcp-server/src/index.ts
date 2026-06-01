@@ -30,6 +30,13 @@ interface JsonRpcError {
 
 type JsonRpcResponse = JsonRpcSuccess | JsonRpcError;
 
+function normalizePath(pathname: string): string {
+  if (pathname === "/") {
+    return pathname;
+  }
+  return pathname.replace(/\/+$/, "");
+}
+
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body, null, 2);
   res.writeHead(status, {
@@ -146,13 +153,14 @@ function handleRpc(request: JsonRpcRequest): JsonRpcResponse | null {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+  const path = normalizePath(url.pathname);
 
-  if (req.method === "GET" && url.pathname === "/healthz") {
+  if (req.method === "GET" && path === "/healthz") {
     sendJson(res, 200, { ok: true, service: "se-cli-mcp", runtime: "real-mcp-read-only", started_at: startedAt });
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/readyz") {
+  if (req.method === "GET" && path === "/readyz") {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
@@ -163,12 +171,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/status") {
+  if (req.method === "GET" && path === "/status") {
     sendJson(res, 200, createStateCard());
     return;
   }
 
-  if (url.pathname === (process.env.SECLI_MCP_PATH || "/mcp")) {
+  if (path === normalizePath(process.env.SECLI_MCP_PATH || "/mcp")) {
     if (req.method !== "POST") {
       sendJson(res, 405, {
         ok: false,
@@ -198,7 +206,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/") {
+  if (req.method === "GET" && path === "/") {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
@@ -208,7 +216,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  sendText(res, 404, "not found");
+  sendJson(res, 404, {
+    ok: false,
+    service: "se-cli-mcp",
+    runtime: "real-mcp-read-only",
+    message: "Route not found. Available endpoints: /healthz, /readyz, /status, /mcp",
+    path,
+  });
 });
 
 server.listen(port, host, () => {

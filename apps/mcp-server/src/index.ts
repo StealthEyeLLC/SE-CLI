@@ -7,6 +7,8 @@ const port = Number.parseInt(process.env.PORT || "10000", 10);
 const host = "0.0.0.0";
 const startedAt = new Date().toISOString();
 const repoRoot = process.env.SECLI_REPO_ROOT || process.cwd();
+const defaultRepository = process.env.SECLI_GITHUB_REPOSITORY || "StealthEyeLLC/SE-CLI";
+const defaultBranch = process.env.SECLI_GITHUB_BRANCH || process.env.SECLI_DEFAULT_BRANCH || "main";
 
 interface JsonRpcRequest {
   jsonrpc?: string;
@@ -39,6 +41,29 @@ interface ReadOnlyToolDefinition {
   filePath?: string;
 }
 
+interface BootstrapWriteArgs {
+  path?: unknown;
+  content?: unknown;
+  message?: unknown;
+  branch?: unknown;
+}
+
+interface GitHubContentResponse {
+  sha?: string;
+  type?: string;
+}
+
+interface GitHubUpdateResponse {
+  commit?: {
+    sha?: string;
+    html_url?: string;
+  };
+  content?: {
+    path?: string;
+    html_url?: string;
+  } | null;
+}
+
 const readOnlyTools: ReadOnlyToolDefinition[] = [
   {
     name: "se.get_state_card",
@@ -65,6 +90,12 @@ const readOnlyTools: ReadOnlyToolDefinition[] = [
     filePath: "ops/RECEIPT.md",
   },
 ];
+
+const bootstrapWriteTool = {
+  name: "se.apply_single_file_update",
+  description:
+    "Bootstrap-limited tool: create or update one allowed UTF-8 repository file through GitHub. No shell, no delete, no protected paths.",
+};
 
 function normalizePath(pathname: string): string {
   if (pathname === "/") {
@@ -114,18 +145,58 @@ function emptyInputSchema() {
   };
 }
 
-function toolList() {
+function bootstrapWriteInputSchema() {
   return {
-    tools: readOnlyTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: emptyInputSchema(),
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        openWorldHint: false,
+    type: "object",
+    additionalProperties: false,
+    required: ["path", "content"],
+    properties: {
+      path: {
+        type: "string",
+        description: "Repository-relative path for one allowed UTF-8 file.",
       },
-    })),
+      content: {
+        type: "string",
+        description: "Complete replacement file content.",
+      },
+      message: {
+        type: "string",
+        description: "Optional concise commit message.",
+      },
+      branch: {
+        type: "string",
+        description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main.",
+      },
+    },
+  };
+}
+
+function toolList() {
+  const readTools = readOnlyTools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: emptyInputSchema(),
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+  }));
+
+  return {
+    tools: [
+      ...readTools,
+      {
+        name: bootstrapWriteTool.name,
+        description: bootstrapWriteTool.description,
+        inputSchema: bootstrapWriteInputSchema(),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          openWorldHint: true,
+        },
+      },
+    ],
   };
 }
 
@@ -154,10 +225,189 @@ async function readRepoFile(relativePath: string): Promise<{ path: string; conte
   return { path: relativePath, content };
 }
 
-async function callTool(name: string) {
+function getGitHubToken(): string {
+  const token = process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (!token) {
+    throw new Error("GitHub token is not configured. Set SECLI_GITHUB_TOKEN or GITHUB_TOKEN in Render.");
+  }
+  return token;
+}
+
+function normalizeRepoPath(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  const normalized = trimmed.replace(/\\/g, "/").replace(/^\.\//, "");
+  if (!normalized || normalized.startsWith("/") || normalized.includes("..") || normalized.includes("//")) {
+    throw new Error(`Invalid repository path: ${rawPath}`);
+  }
+  return normalized;
+}
+
+function assertAllowedBootstrapWritePath(repoPath: string): void {
+  const blockedPrefixes = [".git/", ".github/", "node_modules/", "dist/", "build/", "coverage/", ".pnpm-store/"];
+  const blockedExact = new Set(["render.yaml", ".env", ".env.local", ".npmrc"]);
+  const blockedSuffixes = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
+  const allowedExtensions = [
+    ".md",
+    ".txt",
+    ".json",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".html",
+    ".css",
+    ".dockerignore",
+  ];
+  const allowedExact = new Set(["README.md", "AGENTS.md", "Dockerfile", "package.json", "pnpm-workspace.yaml", "tsconfig.base.json"]);
+
+  const lowerPath = repoPath.toLowerCase();
+  if (blockedPrefixes.some((prefix) => lowerPath.startsWith(prefix))) {
+    throw new Error(`Path is outside bootstrap write scope: ${repoPath}`);
+  }
+  if (blockedExact.has(lowerPath) || lowerPath.includes(".env") || lowerPath.includes("secret") || lowerPath.includes("token")) {
+    throw new Error(`Path is blocked for bootstrap write scope: ${repoPath}`);
+  }
+  if (blockedSuffixes.some((suffix) => lowerPath.endsWith(suffix))) {
+    throw new Error(`Path extension is blocked for bootstrap write scope: ${repoPath}`);
+  }
+  if (allowedExact.has(repoPath)) {
+    return;
+  }
+  if (!allowedExtensions.some((extension) => lowerPath.endsWith(extension))) {
+    throw new Error(`Only common UTF-8 text files are allowed by bootstrap write scope: ${repoPath}`);
+  }
+}
+
+function parseBootstrapWriteArgs(args: unknown): Required<Pick<BootstrapWriteArgs, "path" | "content">> & Pick<BootstrapWriteArgs, "message" | "branch"> {
+  const value = args as BootstrapWriteArgs | undefined;
+  if (!value || typeof value.path !== "string" || typeof value.content !== "string") {
+    throw new Error("se.apply_single_file_update requires string arguments: path and content");
+  }
+  if (value.message !== undefined && typeof value.message !== "string") {
+    throw new Error("message must be a string when provided");
+  }
+  if (value.branch !== undefined && typeof value.branch !== "string") {
+    throw new Error("branch must be a string when provided");
+  }
+
+  const byteLength = Buffer.byteLength(value.content, "utf8");
+  if (byteLength > 500_000) {
+    throw new Error("content is too large for bootstrap single-file update");
+  }
+
+  return value as Required<Pick<BootstrapWriteArgs, "path" | "content">> & Pick<BootstrapWriteArgs, "message" | "branch">;
+}
+
+function githubContentUrl(repository: string, repoPath: string): string {
+  const encodedPath = repoPath.split("/").map(encodeURIComponent).join("/");
+  return `https://api.github.com/repos/${repository}/contents/${encodedPath}`;
+}
+
+async function githubRequest<T>(url: string, init: RequestInit, token: string): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "user-agent": "se-cli-mcp",
+      "x-github-api-version": "2022-11-28",
+      ...(init.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GitHub API request failed (${response.status}): ${text.slice(0, 500)}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function fetchExistingGitHubFile(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
+  const url = `${githubContentUrl(repository, repoPath)}?ref=${encodeURIComponent(branch)}`;
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${token}`,
+      "user-agent": "se-cli-mcp",
+      "x-github-api-version": "2022-11-28",
+    },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GitHub API read failed (${response.status}): ${text.slice(0, 500)}`);
+  }
+
+  const body = (await response.json()) as GitHubContentResponse;
+  if (body.type && body.type !== "file") {
+    throw new Error(`GitHub path is not a file: ${repoPath}`);
+  }
+  return body;
+}
+
+async function applySingleFileUpdate(args: unknown) {
+  if (process.env.SECLI_BOOTSTRAP_WRITE_ENABLED === "0" || process.env.SECLI_BOOTSTRAP_WRITE_ENABLED === "false") {
+    throw new Error("Bootstrap single-file write tool is disabled by SECLI_BOOTSTRAP_WRITE_ENABLED");
+  }
+
+  const parsed = parseBootstrapWriteArgs(args);
+  const repoPath = normalizeRepoPath(parsed.path);
+  assertAllowedBootstrapWritePath(repoPath);
+
+  const branch = (parsed.branch?.trim() || defaultBranch).replace(/^refs\/heads\//, "");
+  if (!branch || branch.includes("..") || branch.startsWith("/") || branch.endsWith("/")) {
+    throw new Error(`Invalid branch: ${branch}`);
+  }
+
+  const token = getGitHubToken();
+  const existing = await fetchExistingGitHubFile(defaultRepository, repoPath, branch, token);
+  const message = parsed.message?.trim() || `se-cli: update ${repoPath}`;
+  const body: Record<string, unknown> = {
+    message,
+    content: Buffer.from(parsed.content, "utf8").toString("base64"),
+    branch,
+  };
+  if (existing?.sha) {
+    body.sha = existing.sha;
+  }
+
+  const result = await githubRequest<GitHubUpdateResponse>(githubContentUrl(defaultRepository, repoPath), {
+    method: "PUT",
+    body: JSON.stringify(body),
+  }, token);
+
+  const structured = {
+    ok: true,
+    tool: bootstrapWriteTool.name,
+    repository: defaultRepository,
+    branch,
+    path: repoPath,
+    action: existing?.sha ? "updated" : "created",
+    commit_sha: result.commit?.sha ?? null,
+    commit_url: result.commit?.html_url ?? null,
+    content_url: result.content?.html_url ?? null,
+  };
+
+  return toolResultText(JSON.stringify(structured, null, 2), structured);
+}
+
+async function callTool(name: string, args?: unknown) {
   if (name === "se.get_state_card") {
     const stateCard = createStateCard();
     return toolResultText(JSON.stringify(stateCard, null, 2), stateCard);
+  }
+
+  if (name === bootstrapWriteTool.name) {
+    return applySingleFileUpdate(args);
   }
 
   const tool = readOnlyTools.find((candidate) => candidate.name === name);
@@ -204,7 +454,7 @@ async function handleRpc(request: JsonRpcRequest): Promise<JsonRpcResponse | nul
       }
 
       try {
-        return rpcSuccess(id, await callTool(params.name));
+        return rpcSuccess(id, await callTool(params.name, params.arguments));
       } catch (error) {
         return rpcError(id, -32601, error instanceof Error ? error.message : `Unknown tool: ${params.name}`);
       }
@@ -220,7 +470,7 @@ const server = http.createServer(async (req, res) => {
   const routePath = normalizePath(url.pathname);
 
   if (req.method === "GET" && routePath === "/healthz") {
-    sendJson(res, 200, { ok: true, service: "se-cli-mcp", runtime: "real-mcp-read-only", started_at: startedAt });
+    sendJson(res, 200, { ok: true, service: "se-cli-mcp", runtime: "real-mcp-bootstrap-write", started_at: startedAt });
     return;
   }
 
@@ -228,7 +478,8 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
-      runtime: "real-mcp-read-only",
+      runtime: "real-mcp-bootstrap-write",
+      github_write: process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "configured" : "not configured",
       database: process.env.DATABASE_URL ? "configured" : "not configured",
       queue: process.env.QUEUE_URL || process.env.REDIS_URL ? "configured" : "not configured",
     });
@@ -274,8 +525,8 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
-      runtime: "real-mcp-read-only",
-      message: "SE-CLI real MCP read-only runtime. Available endpoints: /healthz, /readyz, /status, /mcp",
+      runtime: "real-mcp-bootstrap-write",
+      message: "SE-CLI MCP runtime. Available endpoints: /healthz, /readyz, /status, /mcp",
     });
     return;
   }
@@ -283,7 +534,7 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, {
     ok: false,
     service: "se-cli-mcp",
-    runtime: "real-mcp-read-only",
+    runtime: "real-mcp-bootstrap-write",
     message: "Route not found. Available endpoints: /healthz, /readyz, /status, /mcp",
     path: routePath,
   });

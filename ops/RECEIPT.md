@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-009: Prepare P2A verification handoff.
+M-2026-06-01-010: New-tab handoff and control-surface recovery.
 
 ## Date
 
@@ -10,7 +10,7 @@ M-2026-06-01-009: Prepare P2A verification handoff.
 
 ## Actor
 
-ChatGPT through SE-CLI MCP routine update lane.
+ChatGPT using SE-CLI routine update lane.
 
 ## Branch
 
@@ -20,46 +20,49 @@ ChatGPT through SE-CLI MCP routine update lane.
 
 None.
 
-## Files changed
+## What happened
+
+The current long tab reached a point where repository handoff became more important than continuing in-place.
+
+P2A is implemented and verified green in the GitHub UI after the policy repair. The ChatGPT GitHub connector was able to write/read repo files but was not reliable for discovering integrated-check run/status data.
+
+To address that, SE-CLI proof/status control code was committed:
+
+- `apps/mcp-server/src/control.ts`
+- `apps/mcp-server/scripts/allow-ci-path.mjs`
+
+The intended new tools are:
+
+- `se.get_ic_status`
+- `se.get_service_status`
+- `se.get_proof_packet`
+
+At handoff time, the live SE-CLI service still exposed only the old 7 tools, so the proof-control deploy is pending or failed.
+
+## Key commits referenced
+
+- `52825a88e2cea40d226f99d2e697c16bf280b81e` - P2A policy repair
+- `9f7c65e7044df66d5805a32f5e25d43b9bf0858d` - add proof/service control module
+- `4cce887dca5628f78bcdea2a309a8a9307cd76cf` - wire proof tools into MCP build patcher
+
+## Files updated by this receipt mission
 
 - `ops/STATUS.md`
 - `ops/HANDOFF.md`
 - `ops/RECEIPT.md`
+- `ops/NEXT_TAB.md`
 
-## What changed
+## Verification state
 
-The operating docs were updated to reflect the honest current state after P2A implementation:
-
-- P2A schema/policy contracts are implemented in repository files.
-- P2A has not yet been verified by build/typecheck/test.
-- The current SE-CLI tool surface can read/write ordinary repo files but cannot run validation commands.
-- P2B should not start until P2A is verified and repaired if needed.
-
-## Verification performed
-
-SE-CLI read/write tools were used successfully for this operating-doc update.
-
-No build/typecheck/test execution was performed in this chat.
-
-Required verification remains:
-
-- `pnpm install`
-- `pnpm build`
-- `pnpm typecheck`
-- `pnpm test`
-
-## CI result
-
-Not configured yet.
-
-## Render result
-
-No Render runtime code change was made by this doc update.
-
-## Risk notes
-
-Low risk. Documentation alignment only. No worker execution, production Blueprint, workflow, credential, license change, or generic command tool was added.
+- P2A: green in GitHub UI.
+- SE-CLI live service: reachable.
+- New proof tools: committed but not live at handoff.
+- Render/service deploy proof: needs next-tab check.
 
 ## Next action
 
-Run verification for P2A. If verification fails, repair P2A. After verification passes, move to P2B: build-list engine skeleton.
+Open a new tab and recover from `ops/HANDOFF.md`. First resolve whether the service has deployed the proof-control build. Then start P2B.
+
+## Risk notes
+
+Normal. This update is documentation-only and preserves state for a new tab. No broad worker execution, shell tool, secret exposure, billing, production release, or destructive action was added.

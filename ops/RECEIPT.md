@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-002: Replan SE-CLI next build as Render-first MCP vertical slice.
+M-2026-06-01-003: Verify Render-hosted read-only MCP tools.
 
 ## Date
 
@@ -10,32 +10,32 @@ M-2026-06-01-002: Replan SE-CLI next build as Render-first MCP vertical slice.
 
 ## Actor
 
-ChatGPT with GitHub connector access.
+ChatGPT with SE-CLI MCP and GitHub connector access.
 
 ## Branch
 
 `main`
 
-## Commit
-
-Docs/planning commits created directly during initial repository setup. Future implementation missions should use mission branches and PRs once the worker/packet loop exists.
-
 ## PR
 
 None.
 
-## Files changed
+## Files changed in this receipt update
 
-- `ops/BUILD_PLAN.md`
-- `ops/UPGRADE_LIST.md`
 - `ops/STATUS.md`
 - `ops/HANDOFF.md`
-- `docs/ARCHITECTURE.md`
-- `docs/CHATGPT_APP_SETUP.md`
+- `ops/UPGRADE_LIST.md`
+- `ops/RECEIPT.md`
 
-## Commands/tests
+## Verification performed
 
-No runtime tests. Documentation/planning update only.
+SE-CLI MCP tools were called from ChatGPT and returned successfully:
+
+- `se.get_state_card`
+- `se.read_handoff`
+- `se.read_build_plan`
+- `se.read_upgrade_list`
+- `se.read_latest_receipt`
 
 ## CI result
 
@@ -43,12 +43,16 @@ Not configured yet.
 
 ## Render result
 
-Render bootstrap remains live and verified at `https://se-cli-mcp.onrender.com`. No Render runtime change was made by this planning update.
+Render service `https://se-cli-mcp.onrender.com` is live and running the read-only MCP runtime. The runtime can read operating docs from `/app/ops` after the Docker image was fixed to include `ops/`.
+
+## Connector note
+
+When GitHub and SE-CLI are both enabled, ChatGPT may fail to expose SE-CLI during redeploy/reset checks. The observed workaround is to turn GitHub off and expose SE-CLI only, then retry.
 
 ## Risk notes
 
-Low risk. Documentation only. The next implementation mission is now Render-first: build a real read-only TypeScript MCP app before broad scaffold expansion. No write-capable MCP tools, worker execution, DB/queue requirement, root `render.yaml`, or CI workflow was added.
+Low risk. Read-only tools only. No write-capable MCP tools, worker execution, DB/queue requirement, production Blueprint, or CI workflow was added.
 
 ## Next action
 
-Start P1A/U001: Render-first real MCP vertical slice. Build the minimal TypeScript app, keep `/healthz`, `/readyz`, and `/status` stable, replace placeholder `/mcp` with real read-only MCP runtime, and expose `se.get_state_card` as the first read-only tool.
+Start P2/U003: add schemas and normal/elevated mission policy tests before adding write tools or worker execution.

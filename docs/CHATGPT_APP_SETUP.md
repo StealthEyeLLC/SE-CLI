@@ -1,83 +1,110 @@
 # ChatGPT App / MCP Setup
 
-This file describes how SE-CLI should connect to ChatGPT once the MCP server is deployed on Render.
+This file describes how SE-CLI connects to ChatGPT through a thin app/MCP bridge.
+
+Canonical integrated spec: `docs/INTEGRATED_SPEC.md`.
 
 ## Current status
 
-Render bootstrap is live, but the real MCP runtime does not exist yet. The next implementation mission is P1A: replace the placeholder `/mcp` response with a real read-only MCP runtime.
+The Render-hosted MCP runtime is live and read-only. It is connected to ChatGPT and verified.
 
-## Target connection
-
-ChatGPT should connect to the Render-hosted MCP endpoint:
-
-- Base URL: value of `SECLI_PUBLIC_BASE_URL`
-- MCP path: value of `SECLI_MCP_PATH`, default `/mcp`
-- Full endpoint: `SECLI_PUBLIC_BASE_URL + SECLI_MCP_PATH`
-
-Current target shape:
+Current endpoint:
 
 `https://se-cli-mcp.onrender.com/mcp`
 
-## P1A app goal
-
-P1A should make the Render service usable as a real read-only MCP app.
-
-P1A must provide:
-
-- `/healthz`
-- `/readyz`
-- `/status`
-- `/mcp`
-- read-only MCP initialize/list-tools behavior
-- read-only tool: `se.get_state_card`
-
-P1A must not provide:
-
-- write tools
-- worker execution
-- work packet execution
-- production deploy tools
-- generic shell tools
-- DB/queue requirement
-
-## Tool design
-
-Use a small, high-level tool surface.
-
-P1A read tool:
+Current verified tools:
 
 - `se.get_state_card`
-
-Later read tools:
-
 - `se.read_handoff`
 - `se.read_build_plan`
 - `se.read_upgrade_list`
 - `se.read_latest_receipt`
-- `se.inspect_mission`
-- `se.search_memory`
 
-Later main write tool:
+These are bootstrap/read-only tools. The final app surface should move toward mission-level tools with stable envelopes.
 
-- `se.start_next_safe_mission`
+## Thin-app rule
 
-Later targeted control tools:
+The ChatGPT app is a narrow bridge between ChatGPT and the SE-CLI control server.
 
-- `se.create_mission`
-- `se.create_work_packet`
-- `se.enqueue_packet`
-- `se.cancel_mission`
-- `se.retry_job`
-- `se.update_handoff`
-- `se.update_upgrade_list`
-- `se.write_receipt`
-- `se.request_render_deploy`
+It should:
 
-Do not expose a generic shell or unrestricted file-write tool.
+- expose a small set of high-level tools
+- forward mission/list/status requests to the server
+- return structured response envelopes and result packets
+- avoid containing serious business logic
+- avoid becoming a worker
+- avoid low-level filesystem/shell/git/deploy primitives
 
-## Canonical normal mission wording
+It should not be a mini IDE, terminal proxy, dashboard replacement, or generic tool bucket.
 
-> Start a bounded SE-CLI mission. This may create or edit files on a mission branch, run the listed validation commands, push the branch, and open or update a PR. It will not touch secrets, billing, protected branches, destructive deletes, production deployment, or workflow permissions unless separately approved.
+## Target tool surface
+
+### Read/status tools
+
+- `se.get_state`
+- `se.get_build_list`
+- `se.get_current_mission`
+- `se.get_status`
+- `se.get_result`
+
+### Action tools
+
+- `se.start_build_list`
+- `se.start_mission`
+- `se.continue`
+- `se.submit_fix`
+- `se.retry_failed`
+- `se.pause`
+- `se.cancel`
+- `se.approve_boundary`
+
+### Diagnostic tool
+
+- `se.diagnose_connector`
+
+## Tools not to expose as primary ChatGPT primitives
+
+Do not expose these as normal ChatGPT-facing tools:
+
+- unrestricted file write
+- generic shell
+- direct git push
+- direct production deploy
+- broad browser clicking
+- unrestricted credential operations
+
+Low-level operations must happen behind mission, packet, policy, worker, and adapter layers.
+
+## Request envelope target
+
+Every app-to-server command should eventually use a standard envelope:
+
+- `request_id`
+- `user_intent`
+- `operation`
+- `target`
+- `approval_context`
+- `idempotency_key`
+- `chat_summary`
+- `expected_response_mode`
+- `max_summary_tokens`
+- `client_capabilities`
+
+## Response envelope target
+
+Every server-to-ChatGPT response should eventually use:
+
+- `ok`
+- `status`
+- `message`
+- `state`
+- `next_action`
+- `needs_user`
+- `needs_chatgpt`
+- `tool_suggestion`
+- `result_packet`
+- `artifact_links`
+- `display_summary`
 
 ## Tool annotation policy
 
@@ -87,23 +114,23 @@ Read tools:
 - `destructiveHint: false`
 - `openWorldHint: false`
 
-Normal mission tool, later:
+Mission/list tools:
 
 - `readOnlyHint: false`
-- `destructiveHint: false`
+- `destructiveHint: false` for normal bounded mission/list operations
 - `openWorldHint: true`
 
-Elevated/deploy tools, later:
+Boundary/elevated tools:
 
 - `readOnlyHint: false`
-- `destructiveHint: true` when deletion, overwrite, production deploy, or workflow/security mutation risk exists
+- `destructiveHint: true` only where the operation can materially alter protected surfaces or external state
 - `openWorldHint: true`
 
 ## Auth modes
 
-P1A can begin with no user-secrets-dependent app behavior and focus on read-only MCP compatibility. The final implementation should prefer proper OAuth or verified bearer-style auth as supported by the Apps SDK and the deployment environment.
+Read-only bootstrap may stay simple while the runtime is being built. The final implementation should prefer appropriate OAuth or verified bearer-style auth as supported by the Apps SDK and deployment environment.
 
-Bootstrap env vars reserved for this:
+Reserved env vars:
 
 - `SECLI_MCP_AUTH_MODE`
 - `SECLI_MCP_AUDIENCE`
@@ -119,36 +146,28 @@ ChatGPT chat context is not authoritative state.
 Authoritative state lives in:
 
 - GitHub repo files for code/docs
-- Postgres for missions/jobs/events/memory/receipts/handoffs, once implemented
-- GitHub PR/CI for proof state, once implemented
-- Render for deployed MCP service state
+- durable database state once implemented
+- GitHub PR/CI state once implemented
+- Render deployed runtime state
+- artifact pointers and result packets once implemented
 
-P1A may use static/mock state derived from repo docs until Postgres exists.
+## Connector visibility note
 
-## First connection checklist
+During reconnects or redeploy checks, ChatGPT may stop exposing SE-CLI tools when GitHub is also enabled. The observed recovery is to turn GitHub off, expose SE-CLI only, and retry. Treat this as a connector visibility issue first, not a server failure.
 
-After P1A runtime exists and is deployed:
-
-1. Confirm `/healthz` is passing.
-2. Confirm `/readyz` passes without requiring DB/queue.
-3. Confirm `/status` returns a State Card.
-4. Confirm `/mcp` is reachable over HTTPS.
-5. Configure the custom ChatGPT app/developer-mode MCP connection to the `/mcp` endpoint.
-6. Test MCP initialize/list-tools.
-7. Test `se.get_state_card`.
-8. Do not test write tools because none should exist yet.
+The future `se.diagnose_connector` tool should make this easier to inspect.
 
 ## First write test, later
 
-The first write mission should happen only after packet creation and policy gates exist.
+The first write mission should happen only after schemas, policy gates, packet creation, and worker fixture behavior exist.
 
 It should be tiny and safe:
 
 - create a mission branch
-- update a generated fixture file
-- run a trivial validation command
+- update generated/fixture or tightly scoped files
+- run listed validation
 - push branch
-- open PR
-- update receipt/handoff/status
+- open/update PR
+- return a result packet
 
-Do not make the first write mission edit workflows, deployment config, credentials, or production behavior.
+Do not make the first write mission edit workflows, deployment config, credentials, production behavior, license, or public release surfaces.

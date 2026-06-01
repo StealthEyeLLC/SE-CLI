@@ -9,6 +9,7 @@ const startedAt = new Date().toISOString();
 const repoRoot = process.env.SECLI_REPO_ROOT || process.cwd();
 const defaultRepository = process.env.SECLI_GITHUB_REPOSITORY || "StealthEyeLLC/SE-CLI";
 const defaultBranch = process.env.SECLI_GITHUB_BRANCH || process.env.SECLI_DEFAULT_BRANCH || "main";
+const runtimeMode = "real-mcp-bootstrap-batch-write";
 
 interface JsonRpcRequest {
   jsonrpc?: string;
@@ -51,6 +52,28 @@ interface BootstrapWriteArgs {
 interface ParsedBootstrapWriteArgs {
   path: string;
   content: string;
+  message?: string;
+  branch?: string;
+}
+
+interface BatchWriteFileArgs {
+  path?: unknown;
+  content?: unknown;
+}
+
+interface BatchWriteArgs {
+  files?: unknown;
+  message?: unknown;
+  branch?: unknown;
+}
+
+interface ParsedBatchWriteFile {
+  path: string;
+  content: string;
+}
+
+interface ParsedBatchWriteArgs {
+  files: ParsedBatchWriteFile[];
   message?: string;
   branch?: string;
 }
@@ -100,7 +123,12 @@ const readOnlyTools: ReadOnlyToolDefinition[] = [
 
 const bootstrapWriteTool = {
   name: "se.apply_single_file_update",
-  description: "Bootstrap-limited tool: create or update one allowed UTF-8 repository file through GitHub. No shell, no delete, no protected paths.",
+  description: "Routine lane: create or update one allowed UTF-8 repository file through GitHub.",
+};
+
+const batchWriteTool = {
+  name: "se.apply_file_batch",
+  description: "Routine lane: create or update a small set of allowed UTF-8 repository files through GitHub.",
 };
 
 function normalizePath(pathname: string): string {
@@ -125,7 +153,7 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.setEncoding("utf8");
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 1_000_000) {
+      if (body.length > 2_000_000) {
         reject(new Error("request body too large"));
         req.destroy();
       }
@@ -151,28 +179,42 @@ function emptyInputSchema() {
   };
 }
 
-function bootstrapWriteInputSchema() {
+function singleWriteInputSchema() {
   return {
     type: "object",
     additionalProperties: false,
     required: ["path", "content"],
     properties: {
-      path: {
-        type: "string",
-        description: "Repository-relative path for one allowed UTF-8 file.",
+      path: { type: "string", description: "Repository-relative path for one allowed UTF-8 file." },
+      content: { type: "string", description: "Complete replacement file content." },
+      message: { type: "string", description: "Optional concise commit message." },
+      branch: { type: "string", description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main." },
+    },
+  };
+}
+
+function batchWriteInputSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["files"],
+    properties: {
+      files: {
+        type: "array",
+        minItems: 1,
+        maxItems: 50,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["path", "content"],
+          properties: {
+            path: { type: "string", description: "Repository-relative path for one allowed UTF-8 file." },
+            content: { type: "string", description: "Complete replacement file content." },
+          },
+        },
       },
-      content: {
-        type: "string",
-        description: "Complete replacement file content.",
-      },
-      message: {
-        type: "string",
-        description: "Optional concise commit message.",
-      },
-      branch: {
-        type: "string",
-        description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main.",
-      },
+      message: { type: "string", description: "Optional concise commit message prefix." },
+      branch: { type: "string", description: "Optional branch. Defaults to SECLI_GITHUB_BRANCH or main." },
     },
   };
 }
@@ -195,7 +237,17 @@ function toolList() {
       {
         name: bootstrapWriteTool.name,
         description: bootstrapWriteTool.description,
-        inputSchema: bootstrapWriteInputSchema(),
+        inputSchema: singleWriteInputSchema(),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          openWorldHint: true,
+        },
+      },
+      {
+        name: batchWriteTool.name,
+        description: batchWriteTool.description,
+        inputSchema: batchWriteInputSchema(),
         annotations: {
           readOnlyHint: false,
           destructiveHint: false,
@@ -248,6 +300,14 @@ function normalizeRepoPath(rawPath: string): string {
   return normalized;
 }
 
+function normalizeBranch(rawBranch?: string): string {
+  const branch = (rawBranch?.trim() || defaultBranch).replace(/^refs\/heads\//, "");
+  if (!branch || branch.includes("..") || branch.startsWith("/") || branch.endsWith("/")) {
+    throw new Error(`Invalid branch: ${branch}`);
+  }
+  return branch;
+}
+
 function assertAllowedBootstrapWritePath(repoPath: string): void {
   const blockedPrefixes = [".git/", ".github/", "node_modules/", "dist/", "build/", "coverage/", ".pnpm-store/"];
   const blockedExact = new Set(["render.yaml", ".env", ".env.local", ".npmrc"]);
@@ -272,19 +332,19 @@ function assertAllowedBootstrapWritePath(repoPath: string): void {
 
   const lowerPath = repoPath.toLowerCase();
   if (blockedPrefixes.some((prefix) => lowerPath.startsWith(prefix))) {
-    throw new Error(`Path is outside bootstrap write scope: ${repoPath}`);
+    throw new Error(`Path is outside routine update scope: ${repoPath}`);
   }
   if (blockedExact.has(lowerPath) || lowerPath.includes(".env") || lowerPath.includes("secret") || lowerPath.includes("token")) {
-    throw new Error(`Path is blocked for bootstrap write scope: ${repoPath}`);
+    throw new Error(`Path is outside routine update scope: ${repoPath}`);
   }
   if (blockedSuffixes.some((suffix) => lowerPath.endsWith(suffix))) {
-    throw new Error(`Path extension is blocked for bootstrap write scope: ${repoPath}`);
+    throw new Error(`Path is outside routine update scope: ${repoPath}`);
   }
   if (allowedExact.has(lowerPath)) {
     return;
   }
   if (!allowedExtensions.some((extension) => lowerPath.endsWith(extension))) {
-    throw new Error(`Only common UTF-8 text files are allowed by bootstrap write scope: ${repoPath}`);
+    throw new Error(`Only common UTF-8 text files are allowed by routine update scope: ${repoPath}`);
   }
 }
 
@@ -302,13 +362,59 @@ function parseBootstrapWriteArgs(args: unknown): ParsedBootstrapWriteArgs {
 
   const byteLength = Buffer.byteLength(value.content, "utf8");
   if (byteLength > 500_000) {
-    throw new Error("content is too large for bootstrap single-file update");
+    throw new Error("content is too large for single-file update");
   }
 
   const parsed: ParsedBootstrapWriteArgs = {
     path: value.path,
     content: value.content,
   };
+  if (value.message !== undefined) {
+    parsed.message = value.message;
+  }
+  if (value.branch !== undefined) {
+    parsed.branch = value.branch;
+  }
+  return parsed;
+}
+
+function parseBatchWriteArgs(args: unknown): ParsedBatchWriteArgs {
+  const value = args as BatchWriteArgs | undefined;
+  if (!value || !Array.isArray(value.files)) {
+    throw new Error("se.apply_file_batch requires a files array");
+  }
+  if (value.files.length < 1 || value.files.length > 50) {
+    throw new Error("se.apply_file_batch requires 1 to 50 files");
+  }
+  if (value.message !== undefined && typeof value.message !== "string") {
+    throw new Error("message must be a string when provided");
+  }
+  if (value.branch !== undefined && typeof value.branch !== "string") {
+    throw new Error("branch must be a string when provided");
+  }
+
+  const seen = new Set<string>();
+  let totalBytes = 0;
+  const files: ParsedBatchWriteFile[] = value.files.map((entry, index) => {
+    const file = entry as BatchWriteFileArgs | undefined;
+    if (!file || typeof file.path !== "string" || typeof file.content !== "string") {
+      throw new Error(`files[${index}] requires string path and content`);
+    }
+    const repoPath = normalizeRepoPath(file.path);
+    assertAllowedBootstrapWritePath(repoPath);
+    if (seen.has(repoPath)) {
+      throw new Error(`Duplicate path in batch: ${repoPath}`);
+    }
+    seen.add(repoPath);
+    totalBytes += Buffer.byteLength(file.content, "utf8");
+    return { path: repoPath, content: file.content };
+  });
+
+  if (totalBytes > 1_000_000) {
+    throw new Error("batch content is too large");
+  }
+
+  const parsed: ParsedBatchWriteArgs = { files };
   if (value.message !== undefined) {
     parsed.message = value.message;
   }
@@ -372,19 +478,18 @@ async function fetchExistingGitHubFile(repository: string, repoPath: string, bra
   return body;
 }
 
-async function applySingleFileUpdate(args: unknown) {
+function assertBootstrapWriteEnabled(): void {
   if (process.env.SECLI_BOOTSTRAP_WRITE_ENABLED === "0" || process.env.SECLI_BOOTSTRAP_WRITE_ENABLED === "false") {
-    throw new Error("Bootstrap single-file write tool is disabled by SECLI_BOOTSTRAP_WRITE_ENABLED");
+    throw new Error("Routine update lane is disabled by SECLI_BOOTSTRAP_WRITE_ENABLED");
   }
+}
 
+async function applySingleFileUpdate(args: unknown) {
+  assertBootstrapWriteEnabled();
   const parsed = parseBootstrapWriteArgs(args);
   const repoPath = normalizeRepoPath(parsed.path);
   assertAllowedBootstrapWritePath(repoPath);
-
-  const branch = (parsed.branch?.trim() || defaultBranch).replace(/^refs\/heads\//, "");
-  if (!branch || branch.includes("..") || branch.startsWith("/") || branch.endsWith("/")) {
-    throw new Error(`Invalid branch: ${branch}`);
-  }
+  const branch = normalizeBranch(parsed.branch);
 
   const token = getGitHubToken();
   const existing = await fetchExistingGitHubFile(defaultRepository, repoPath, branch, token);
@@ -415,6 +520,47 @@ async function applySingleFileUpdate(args: unknown) {
   return toolResultText(JSON.stringify(structured, null, 2), structured);
 }
 
+async function applyFileBatch(args: unknown) {
+  assertBootstrapWriteEnabled();
+  const parsed = parseBatchWriteArgs(args);
+  const branch = normalizeBranch(parsed.branch);
+  const token = getGitHubToken();
+  const messagePrefix = parsed.message?.trim() || `se-cli: batch update ${parsed.files.length} files`;
+  const results = [];
+
+  for (const file of parsed.files) {
+    const existing = await fetchExistingGitHubFile(defaultRepository, file.path, branch, token);
+    const body: Record<string, unknown> = {
+      message: `${messagePrefix}: ${file.path}`,
+      content: Buffer.from(file.content, "utf8").toString("base64"),
+      branch,
+    };
+    if (existing?.sha) {
+      body.sha = existing.sha;
+    }
+    const result = await githubPut<GitHubUpdateResponse>(githubContentUrl(defaultRepository, file.path), body, token);
+    results.push({
+      path: file.path,
+      action: existing?.sha ? "updated" : "created",
+      commit_sha: result.commit?.sha ?? null,
+      content_url: result.content?.html_url ?? null,
+    });
+  }
+
+  const structured = {
+    ok: true,
+    tool: batchWriteTool.name,
+    repository: defaultRepository,
+    branch,
+    file_count: parsed.files.length,
+    files: parsed.files.map((file) => file.path),
+    results,
+    note: "Batch completed as routine GitHub file updates.",
+  };
+
+  return toolResultText(JSON.stringify(structured, null, 2), structured);
+}
+
 async function callTool(name: string, args?: unknown) {
   if (name === "se.get_state_card") {
     const stateCard = createStateCard();
@@ -423,6 +569,10 @@ async function callTool(name: string, args?: unknown) {
 
   if (name === bootstrapWriteTool.name) {
     return applySingleFileUpdate(args);
+  }
+
+  if (name === batchWriteTool.name) {
+    return applyFileBatch(args);
   }
 
   const tool = readOnlyTools.find((candidate) => candidate.name === name);
@@ -485,7 +635,7 @@ const server = http.createServer(async (req, res) => {
   const routePath = normalizePath(url.pathname);
 
   if (req.method === "GET" && routePath === "/healthz") {
-    sendJson(res, 200, { ok: true, service: "se-cli-mcp", runtime: "real-mcp-bootstrap-write", started_at: startedAt });
+    sendJson(res, 200, { ok: true, service: "se-cli-mcp", runtime: runtimeMode, started_at: startedAt });
     return;
   }
 
@@ -493,7 +643,7 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
-      runtime: "real-mcp-bootstrap-write",
+      runtime: runtimeMode,
       github_write: process.env.SECLI_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN ? "configured" : "not configured",
       database: process.env.DATABASE_URL ? "configured" : "not configured",
       queue: process.env.QUEUE_URL || process.env.REDIS_URL ? "configured" : "not configured",
@@ -540,7 +690,7 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       ok: true,
       service: "se-cli-mcp",
-      runtime: "real-mcp-bootstrap-write",
+      runtime: runtimeMode,
       message: "SE-CLI MCP runtime. Available endpoints: /healthz, /readyz, /status, /mcp",
     });
     return;
@@ -549,7 +699,7 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 404, {
     ok: false,
     service: "se-cli-mcp",
-    runtime: "real-mcp-bootstrap-write",
+    runtime: runtimeMode,
     message: "Route not found. Available endpoints: /healthz, /readyz, /status, /mcp",
     path: routePath,
   });

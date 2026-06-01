@@ -2,52 +2,27 @@
 
 ## State Card
 
-- Mission: M-2026-06-01-009, Prepare P2A verification handoff
-- Mode: p2a-awaiting-execution-verification
+- Mission: M-2026-06-01-010, New-tab handoff and control-surface recovery
+- Mode: p2a-verified-green-control-tools-pending-live-deploy
 - Branch: main
 - PR: none
-- CI: not configured yet
+- IC: green in GitHub UI after P2A repair
 - Worker: not implemented yet
-- Render: live service at `https://se-cli-mcp.onrender.com` running MCP runtime with routine update lanes
-- Last action: confirmed P2A implementation state and prepared verification handoff for build/typecheck/test
-- Next action: run `pnpm install`, `pnpm build`, `pnpm typecheck`, and `pnpm test`; repair any failures before P2B
-- Blocked: verification pending because execution/CI is not available through current SE-CLI tools
-- Needs approval: none for verification; normal mission approval for any repair commit if verification fails
+- Service: live at `https://se-cli-mcp.onrender.com`, but still exposing the old 7-tool MCP surface at last check
+- Last action: P2A schema/policy contracts were implemented and verified green; proof/status control code was committed but was not live through SE-CLI at last check
+- Next action: in a new tab, refresh tools and check whether `se.get_ic_status`, `se.get_service_status`, and `se.get_proof_packet` are visible; if not, treat it as a service deploy/rebuild issue before P2B
+- Blocked: partially; P2A is verified, but new proof-control tools are pending live deploy
+- Needs approval: none for check/redeploy recovery; normal mission approval before P2B implementation
 - Risk: normal
 - Updated: 2026-06-01
 
 ## Current truth
 
-SE-CLI now has:
+P2A is implemented and verified green. The failing policy test was repaired by adding `packages/se-policy/scripts/refine.mjs` and wiring it into `packages/se-policy/package.json`.
 
-- operating documentation spine
-- root `AGENTS.md`
-- canonical integrated spec
-- MCP control-plane upgrade note
-- living build plan
-- minimal TypeScript workspace
-- Render-hosted MCP runtime
-- read-only operating tools
-- routine single-file update lane
-- routine batch update lane
-- P2A schema package scaffold
-- P2A policy package scaffold
-- P2A policy tests
+The GitHub UI showed the integrated check green after repair. The ChatGPT GitHub connector was unreliable for run/status discovery, returning empty arrays even while the UI showed real activity.
 
-The locked control-plane model is:
-
-- ChatGPT is the natural-language commander, reviewer, repair commander, and summarizer.
-- The ChatGPT App/MCP connector is a thin bridge.
-- The SE-CLI server is the stateful control plane.
-- Build lists and missions are the units of scoped approval.
-- Work packets are execution contracts.
-- Workers are deterministic execution appliances.
-- GitHub PRs are the review surface.
-- CI is the proof surface.
-- Result packets return to ChatGPT instead of raw log dumps.
-- New tabs resume from SE-CLI state and operating docs.
-
-Current verified MCP tools:
+SE-CLI is reachable, but at last check the live service exposed only these 7 tools:
 
 - `se.get_state_card`
 - `se.read_handoff`
@@ -57,37 +32,38 @@ Current verified MCP tools:
 - `se.apply_single_file_update`
 - `se.apply_file_batch`
 
-## P2A files added
+Committed but not live at last check:
 
-- `packages/se-schemas/package.json`
-- `packages/se-schemas/tsconfig.json`
-- `packages/se-schemas/src/primitives.ts`
-- `packages/se-schemas/src/mission.ts`
-- `packages/se-schemas/src/result.ts`
-- `packages/se-schemas/src/packet.ts`
-- `packages/se-schemas/src/boundary.ts`
-- `packages/se-schemas/src/index.ts`
-- `packages/se-policy/package.json`
-- `packages/se-policy/tsconfig.json`
-- `packages/se-policy/src/index.ts`
-- `packages/se-policy/src/test/policy.test.ts`
-- root `package.json` test script update
+- `apps/mcp-server/src/control.ts`
+- `apps/mcp-server/scripts/allow-ci-path.mjs` wiring update
 
-## Verification status
+Expected after successful service redeploy:
 
-Execution is not available through the current SE-CLI MCP tool surface, and CI is not configured yet. P2A is implemented but not verified.
+- `se.get_ic_status`
+- `se.get_service_status`
+- `se.get_proof_packet`
 
-Required verification commands:
+## Key commits
 
-- `pnpm install`
-- `pnpm build`
-- `pnpm typecheck`
-- `pnpm test`
+- `52825a88e2cea40d226f99d2e697c16bf280b81e` - P2A policy repair
+- `9f7c65e7044df66d5805a32f5e25d43b9bf0858d` - add proof/service control module
+- `4cce887dca5628f78bcdea2a309a8a9307cd76cf` - wire proof tools into MCP build patcher
 
-## Current blocker
+## Do next
 
-Do not start P2B until P2A passes verification. The immediate needed upgrade is a verification lane: either CI, a bounded worker command runner, or a user-run/local-worker proof path.
+1. Start a new tab.
+2. Refresh tools.
+3. Prefer SE-CLI only if connector visibility gets confused.
+4. Call `se.get_state_card`.
+5. Check whether the three new proof tools are visible.
+6. If visible, call `se.get_proof_packet` and update docs from the result.
+7. If not visible, recover the service deploy first.
+8. Once proof tools are live or deploy issue is understood, begin P2B: build-list engine skeleton.
 
-## Next build target
+## Do not do next
 
-Verify and repair P2A. After P2A passes build/typecheck/test, move to P2B: build-list engine skeleton.
+- Do not redo P2A.
+- Do not fight the ChatGPT GitHub connector for authoritative check status.
+- Do not start broad worker execution yet.
+- Do not add a generic shell tool.
+- Do not treat ChatGPT memory as authoritative; use repo docs as handoff state.

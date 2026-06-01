@@ -14,41 +14,44 @@ None.
 
 ## Current commit
 
-Docs are being committed directly during initial repository setup. Future missions should use mission branches and PRs once the work-packet/worker loop exists.
+Bootstrap/docs commits are being committed directly during initial repository setup. Future implementation missions should use mission branches and PRs once the work-packet/worker loop exists.
 
 ## Current State Card
 
 - Mission: M-2026-06-01-001, Initialize docs and Render setup spine
-- Mode: setup
+- Mode: bootstrap-ready
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
-- Render: not configured yet
-- Last action: created operating docs spine
-- Next action: set up Render using `docs/RENDER_SETUP.md`, then build the first code mission from `ops/UPGRADE_LIST.md`
+- Render: bootstrap Dockerfile exists; Render can deploy a placeholder service
+- Last action: added root `Dockerfile` and `.dockerignore`
+- Next action: create Render web service from root `Dockerfile`, then build first implementation mission from `ops/UPGRADE_LIST.md`
 - Blocked: no
-- Needs approval: none for docs setup; Render account/service creation is user-owned
+- Needs approval: none for docs/bootstrap setup; Render account/service creation is user-owned
 - Risk: low
 - Updated: 2026-06-01
 
 ## Last completed action
 
-The repository was initialized with the SE-CLI operating doctrine and documentation spine.
+The repository was initialized with the SE-CLI operating doctrine, documentation spine, Render setup docs, and a bootstrap Dockerfile that can deploy before the real MCP runtime exists.
 
 ## Next safest action
 
 1. User creates/configures Render resources from `docs/RENDER_SETUP.md`.
-2. Add secrets/env vars in Render and GitHub as documented.
-3. Start the first implementation mission: repository/package scaffold and schema/policy tests.
+2. Create a Render Web Service from the root `Dockerfile`.
+3. Set health check path to `/healthz`.
+4. Add secrets/env vars in Render and GitHub as documented.
+5. Confirm `/healthz`, `/readyz`, and `/status` on the Render URL.
+6. Start the first implementation mission: repository/package scaffold and schema/policy tests.
 
 ## Open risks
 
-- Runtime code does not exist yet.
-- MCP app is not deployed yet.
+- Real MCP runtime does not exist yet.
+- `/mcp` is a placeholder endpoint and returns not implemented.
 - Worker is not implemented yet.
 - CI is not configured yet.
-- Render resources are not configured yet.
+- Render resources may still need manual creation.
 
 ## Do not do
 

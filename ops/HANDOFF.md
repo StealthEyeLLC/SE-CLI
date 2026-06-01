@@ -2,7 +2,7 @@
 
 ## Current mission
 
-M-2026-06-01-006: Align docs with MCP control-plane upgrades.
+M-2026-06-01-008: Add P2A schema and policy contract layer.
 
 ## Current branch
 
@@ -14,31 +14,55 @@ None.
 
 ## Current State Card
 
-- Mission: M-2026-06-01-006, Align docs with MCP control-plane upgrades
-- Mode: control-plane-docs-current-next-p2a
+- Mission: M-2026-06-01-008, Add P2A schema and policy contract layer
+- Mode: p2a-implemented-pending-verification
 - Branch: main
 - PR: none
 - CI: not configured yet
 - Worker: not implemented yet
 - Render: live service at `https://se-cli-mcp.onrender.com` running MCP runtime with routine update lanes
-- Last action: documented thin-app/MCP control-plane upgrades, routine batch update lane, and P2A contract target
-- Next action: start P2A/U005 core envelopes, schemas, policy verdicts, and continuation contracts
-- Blocked: no
-- Needs approval: normal mission approval for P2A implementation work
-- Risk: low
+- Last action: added P2A schema and policy packages with contract types, policy decisions, continuation decisions, and node test fixtures
+- Next action: verify build/typecheck/test once execution is available, then repair any TypeScript/runtime issues before moving to P2B
+- Blocked: verification pending
+- Needs approval: none for verification; normal mission approval for repairs if needed
+- Risk: normal
 - Updated: 2026-06-01
 
 ## Last completed action
 
-The docs were updated around the real MCP/control-plane build model:
+P2A contract layer was added through SE-CLI routine update lanes.
 
-- ChatGPT is the conversation brain.
-- The ChatGPT app stays thin.
-- The SE-CLI server owns state, missions, build lists, packets, continuation, integrations, and result packets.
-- Workers are deterministic execution appliances.
-- GitHub PRs and CI are the review/proof surface.
-- New tabs resume from SE-CLI state and operating docs.
-- Routine update lanes exist only as bootstrap bridges until the packet/worker path exists.
+Added contract coverage:
+
+- app request envelope
+- server response envelope
+- build list
+- build-list item
+- mission
+- work packet
+- job
+- worker lease
+- worker capability
+- result packet
+- boundary request
+- policy verdict
+- continuation decision
+- authority class
+- failure class
+- review/user requirement concepts
+
+Added policy coverage:
+
+- routine path classification
+- routine command classification
+- normal mission allowed
+- elevated mission requires boundary classification
+- out-of-shape path rejected
+- out-of-shape command rejected
+- passed result can advance next item
+- failed result needs review
+- user boundary asks user
+- result packet has tiny, standard, and artifact views
 
 ## Current live tools
 
@@ -56,18 +80,18 @@ If ChatGPT stops showing SE-CLI tools during a redeploy or reset check, the obse
 
 ## Next safest action
 
-Start P2A/U005 as a normal mission:
+Run or obtain verification for:
 
-1. Add or expand `packages/se-schemas`.
-2. Add or expand `packages/se-policy`.
-3. Define app/server envelopes.
-4. Define build-list, mission, job, worker, result-packet, boundary-request, authority-class, failure-class, policy-verdict, continuation-decision, and reasoning-requirement contracts.
-5. Add fixtures for allowed, elevated, blocked, invalid, clear continuation, needs-review, and needs-user cases.
-6. Add tests proving classification and validation behavior.
-7. Keep broad execution tools out of scope.
+1. `pnpm install`
+2. `pnpm build`
+3. `pnpm typecheck`
+4. `pnpm test`
+
+Then repair any TypeScript or test failures. Do not move to P2B until P2A verifies.
 
 ## Open risks
 
+- P2A source has not been executed in CI/local runtime yet.
 - Worker is not implemented yet.
 - CI is not configured yet.
 - DB/queue are not configured yet.
@@ -76,8 +100,9 @@ Start P2A/U005 as a normal mission:
 
 ## Do not do
 
+- Do not start P2B until P2A passes build/typecheck/test.
 - Do not expose generic command execution.
-- Do not add worker execution before packet contracts exist.
+- Do not add worker execution before packet contracts are stable.
 - Do not require DB/queue for P2A.
 - Do not add local model dependencies.
 - Do not create dashboard-first workflow.

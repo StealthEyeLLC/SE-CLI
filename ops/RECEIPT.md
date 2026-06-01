@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-001: Initialize SE-CLI documentation and Render setup spine.
+M-2026-06-01-001: Initialize SE-CLI documentation, Render setup spine, and bootstrap Docker deployment.
 
 ## Date
 
@@ -18,7 +18,7 @@ ChatGPT with GitHub connector access.
 
 ## Commit
 
-Initial documentation commits created directly during repository setup. Future implementation missions should use mission branches and PRs once the worker/packet loop exists.
+Bootstrap/docs commits created directly during initial repository setup. Future implementation missions should use mission branches and PRs once the worker/packet loop exists.
 
 ## PR
 
@@ -27,6 +27,8 @@ None.
 ## Files changed
 
 - `README.md`
+- `Dockerfile`
+- `.dockerignore`
 - `ops/OPERATOR_MANUAL.md`
 - `ops/HANDOFF.md`
 - `ops/STATUS.md`
@@ -43,7 +45,7 @@ None.
 
 ## Commands/tests
 
-No runtime commands yet. This mission is documentation-only.
+No runtime test suite yet. The root `Dockerfile` provides a bootstrap Node 24 HTTP service for Render with `/healthz`, `/readyz`, `/status`, and placeholder `/mcp` endpoints.
 
 ## CI result
 
@@ -51,12 +53,12 @@ Not configured yet.
 
 ## Render result
 
-Not configured yet.
+Render can now deploy from the root `Dockerfile`. The actual Render service has not been created by this mission.
 
 ## Risk notes
 
-Low risk. Documentation only. No secrets, no runtime code, no root `render.yaml`, no GitHub Actions workflow, and no Render service created by this mission.
+Low risk. Bootstrap service only. No secrets, no production runtime, no root `render.yaml`, no GitHub Actions workflow, and no real MCP write tools yet. The `/mcp` endpoint intentionally returns not implemented until the real runtime exists.
 
 ## Next action
 
-Configure Render manually from `docs/RENDER_SETUP.md`, then start implementation mission U001 from `ops/UPGRADE_LIST.md`.
+Create the Render web service from the root `Dockerfile`, confirm `/healthz`, `/readyz`, and `/status`, then start implementation mission U001 from `ops/UPGRADE_LIST.md`.

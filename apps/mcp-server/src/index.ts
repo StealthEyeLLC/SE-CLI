@@ -48,6 +48,13 @@ interface BootstrapWriteArgs {
   branch?: unknown;
 }
 
+interface ParsedBootstrapWriteArgs {
+  path: string;
+  content: string;
+  message?: string;
+  branch?: string;
+}
+
 interface GitHubContentResponse {
   sha?: string;
   type?: string;
@@ -93,8 +100,7 @@ const readOnlyTools: ReadOnlyToolDefinition[] = [
 
 const bootstrapWriteTool = {
   name: "se.apply_single_file_update",
-  description:
-    "Bootstrap-limited tool: create or update one allowed UTF-8 repository file through GitHub. No shell, no delete, no protected paths.",
+  description: "Bootstrap-limited tool: create or update one allowed UTF-8 repository file through GitHub. No shell, no delete, no protected paths.",
 };
 
 function normalizePath(pathname: string): string {
@@ -262,7 +268,7 @@ function assertAllowedBootstrapWritePath(repoPath: string): void {
     ".css",
     ".dockerignore",
   ];
-  const allowedExact = new Set(["README.md", "AGENTS.md", "Dockerfile", "package.json", "pnpm-workspace.yaml", "tsconfig.base.json"]);
+  const allowedExact = new Set(["readme.md", "agents.md", "dockerfile", "package.json", "pnpm-workspace.yaml", "tsconfig.base.json"]);
 
   const lowerPath = repoPath.toLowerCase();
   if (blockedPrefixes.some((prefix) => lowerPath.startsWith(prefix))) {
@@ -274,7 +280,7 @@ function assertAllowedBootstrapWritePath(repoPath: string): void {
   if (blockedSuffixes.some((suffix) => lowerPath.endsWith(suffix))) {
     throw new Error(`Path extension is blocked for bootstrap write scope: ${repoPath}`);
   }
-  if (allowedExact.has(repoPath)) {
+  if (allowedExact.has(lowerPath)) {
     return;
   }
   if (!allowedExtensions.some((extension) => lowerPath.endsWith(extension))) {
@@ -282,7 +288,7 @@ function assertAllowedBootstrapWritePath(repoPath: string): void {
   }
 }
 
-function parseBootstrapWriteArgs(args: unknown): Required<Pick<BootstrapWriteArgs, "path" | "content">> & Pick<BootstrapWriteArgs, "message" | "branch"> {
+function parseBootstrapWriteArgs(args: unknown): ParsedBootstrapWriteArgs {
   const value = args as BootstrapWriteArgs | undefined;
   if (!value || typeof value.path !== "string" || typeof value.content !== "string") {
     throw new Error("se.apply_single_file_update requires string arguments: path and content");
@@ -299,7 +305,17 @@ function parseBootstrapWriteArgs(args: unknown): Required<Pick<BootstrapWriteArg
     throw new Error("content is too large for bootstrap single-file update");
   }
 
-  return value as Required<Pick<BootstrapWriteArgs, "path" | "content">> & Pick<BootstrapWriteArgs, "message" | "branch">;
+  const parsed: ParsedBootstrapWriteArgs = {
+    path: value.path,
+    content: value.content,
+  };
+  if (value.message !== undefined) {
+    parsed.message = value.message;
+  }
+  if (value.branch !== undefined) {
+    parsed.branch = value.branch;
+  }
+  return parsed;
 }
 
 function githubContentUrl(repository: string, repoPath: string): string {
@@ -307,17 +323,24 @@ function githubContentUrl(repository: string, repoPath: string): string {
   return `https://api.github.com/repos/${repository}/contents/${encodedPath}`;
 }
 
-async function githubRequest<T>(url: string, init: RequestInit, token: string): Promise<T> {
+function githubHeaders(token: string, includeContentType: boolean): Record<string, string> {
+  const headers: Record<string, string> = {
+    accept: "application/vnd.github+json",
+    authorization: `Bearer ${token}`,
+    "user-agent": "se-cli-mcp",
+    "x-github-api-version": "2022-11-28",
+  };
+  if (includeContentType) {
+    headers["content-type"] = "application/json";
+  }
+  return headers;
+}
+
+async function githubPut<T>(url: string, body: Record<string, unknown>, token: string): Promise<T> {
   const response = await fetch(url, {
-    ...init,
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-      "user-agent": "se-cli-mcp",
-      "x-github-api-version": "2022-11-28",
-      ...(init.headers ?? {}),
-    },
+    method: "PUT",
+    headers: githubHeaders(token, true),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -331,12 +354,7 @@ async function githubRequest<T>(url: string, init: RequestInit, token: string): 
 async function fetchExistingGitHubFile(repository: string, repoPath: string, branch: string, token: string): Promise<GitHubContentResponse | null> {
   const url = `${githubContentUrl(repository, repoPath)}?ref=${encodeURIComponent(branch)}`;
   const response = await fetch(url, {
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${token}`,
-      "user-agent": "se-cli-mcp",
-      "x-github-api-version": "2022-11-28",
-    },
+    headers: githubHeaders(token, false),
   });
 
   if (response.status === 404) {
@@ -380,10 +398,7 @@ async function applySingleFileUpdate(args: unknown) {
     body.sha = existing.sha;
   }
 
-  const result = await githubRequest<GitHubUpdateResponse>(githubContentUrl(defaultRepository, repoPath), {
-    method: "PUT",
-    body: JSON.stringify(body),
-  }, token);
+  const result = await githubPut<GitHubUpdateResponse>(githubContentUrl(defaultRepository, repoPath), body, token);
 
   const structured = {
     ok: true,

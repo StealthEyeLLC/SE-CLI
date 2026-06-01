@@ -2,7 +2,7 @@
 
 ## Mission
 
-M-2026-06-01-010: New-tab handoff and control-surface recovery.
+M-2026-06-01-010: new-tab handoff and service-surface check.
 
 ## Date
 
@@ -10,7 +10,7 @@ M-2026-06-01-010: New-tab handoff and control-surface recovery.
 
 ## Actor
 
-ChatGPT using SE-CLI routine update lane.
+ChatGPT using available repo tools.
 
 ## Branch
 
@@ -22,47 +22,45 @@ None.
 
 ## What happened
 
-The current long tab reached a point where repository handoff became more important than continuing in-place.
+The new-tab check was run.
 
-P2A is implemented and verified green in the GitHub UI after the policy repair. The ChatGPT GitHub connector was able to write/read repo files but was not reliable for discovering integrated-check run/status data.
+SE-CLI was reachable from ChatGPT. The refreshed live tool list still showed the earlier 7-tool surface:
 
-To address that, SE-CLI proof/status control code was committed:
+- `se.get_state_card`
+- `se.read_handoff`
+- `se.read_build_plan`
+- `se.read_upgrade_list`
+- `se.read_latest_receipt`
+- `se.apply_single_file_update`
+- `se.apply_file_batch`
 
-- `apps/mcp-server/src/control.ts`
-- `apps/mcp-server/scripts/allow-ci-path.mjs`
-
-The intended new tools are:
+The newer proof/status tools are not visible yet:
 
 - `se.get_ic_status`
 - `se.get_service_status`
 - `se.get_proof_packet`
 
-At handoff time, the live SE-CLI service still exposed only the old 7 tools, so the proof-control deploy is pending or failed.
+Repo-side review found that the newer proof/status code is present, and the MCP package build helper is intended to include it in the server surface.
 
-## Key commits referenced
+## Conclusion
 
-- `52825a88e2cea40d226f99d2e697c16bf280b81e` - P2A policy repair
-- `9f7c65e7044df66d5805a32f5e25d43b9bf0858d` - add proof/service control module
-- `4cce887dca5628f78bcdea2a309a8a9307cd76cf` - wire proof tools into MCP build patcher
+P2A remains complete and green. Do not redo P2A.
 
-## Files updated by this receipt mission
+The next item is a hosted-service refresh check. Confirm the live Render revision/status, then refresh ChatGPT tools again.
+
+## Files updated
 
 - `ops/STATUS.md`
 - `ops/HANDOFF.md`
 - `ops/RECEIPT.md`
-- `ops/NEXT_TAB.md`
 
-## Verification state
+## Current verification state
 
 - P2A: green in GitHub UI.
-- SE-CLI live service: reachable.
-- New proof tools: committed but not live at handoff.
-- Render/service deploy proof: needs next-tab check.
+- SE-CLI: reachable through ChatGPT.
+- New proof/status tools: present in repo, not visible live yet.
+- P2B: not started.
 
 ## Next action
 
-Open a new tab and recover from `ops/HANDOFF.md`. First resolve whether the service has deployed the proof-control build. Then start P2B.
-
-## Risk notes
-
-Normal. This update is documentation-only and preserves state for a new tab. No broad worker execution, shell tool, secret exposure, billing, production release, or destructive action was added.
+Check the Render-side status for `se-cli-mcp`, confirm the live revision/commit, and refresh tools again. If the newer tools appear, call `se.get_proof_packet` and update the ops notes. If they still do not appear, keep the question scoped to service refresh/build visibility.
